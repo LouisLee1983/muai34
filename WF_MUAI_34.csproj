@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- 添加这行来解决冲突 -->
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EPPlus" Version="8.0.7" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Npgsql" Version="8.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="F:\vs2022\WF_MUAI_34\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="B3BSession\" />
+  </ItemGroup>
+  <!-- 添加这个ItemGroup来排除WPF相关的DLL -->
+  <ItemGroup>
+    <Reference Remove="Microsoft.Web.WebView2.Wpf" />
+  </ItemGroup>
+</Project>
