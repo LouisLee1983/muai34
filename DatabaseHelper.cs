@@ -40,7 +40,7 @@ namespace WF_MUAI_34
         private string _connectionString;
 
         public DatabaseHelper(string host = "47.111.119.238", int port = 5432, 
-            string database = "etermaidb", string username = "postgres", string password = "Postgre,.1")
+            string database = "etermaidb", string username = "postgres", string password = "")
         {
             _connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password};";
         }
