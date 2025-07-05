@@ -13,6 +13,8 @@ using System.Net.Http;
 using System.Threading;
 using System.Drawing.Printing;
 using System.Timers;
+using System.IO;
+using System.Text.RegularExpressions;
 
 namespace WF_MUAI_34
 {
@@ -23,6 +25,11 @@ namespace WF_MUAI_34
         private System.Windows.Forms.Timer dailyDeleteTimer = null!; // 每日删除定时器
         private bool isAutoDeleteEnabled = false; // 是否启用自动删除
         private TimeSpan deleteTime = new TimeSpan(23, 58, 0); // 默认删除时间 23:58
+        
+        // 自动登录相关属性
+        private const string LOGIN_URL = "https://oper.cddyf.net/Login.aspx";
+        private bool isAutoLoginEnabled = true; // 是否启用自动登录
+        private System.Windows.Forms.Timer loginCheckTimer = null!; // 登录检查定时器
 
         public B3BForm()
         {
@@ -30,6 +37,7 @@ namespace WF_MUAI_34
             InitializeAsync(); // 异步初始化 WebView2 控件
             InitializeDailyDeleteTimer(); // 初始化定时任务
             InitializeUIControls(); // 初始化UI控件
+            InitializeAutoLoginTimer(); // 初始化自动登录检查定时器
         }
 
         /// <summary>
@@ -244,6 +252,8 @@ namespace WF_MUAI_34
         {
             dailyDeleteTimer?.Stop();
             dailyDeleteTimer?.Dispose();
+            loginCheckTimer?.Stop();
+            loginCheckTimer?.Dispose();
             base.OnFormClosed(e);
         }
 
@@ -435,8 +445,13 @@ namespace WF_MUAI_34
             // 尝试加载保存的Cookie
             await LoadCookiesAsync();
 
+            // 启动自动登录检查
+            EnableAutoLogin();
+            System.Diagnostics.Debug.WriteLine("自动登录检查已启动");
+
             // 导航到目标网站
             webViewB3B.Source = new Uri(url);
+            System.Diagnostics.Debug.WriteLine($"导航到: {url}");
         }
 
         private async void buttonSaveSession_Click(object sender, EventArgs e)
@@ -1504,19 +1519,24 @@ namespace WF_MUAI_34
                     httpClient.DefaultRequestHeaders.Add("Referer", "https://fuwu.cddyf.net/Product/Domestic/DomesticAVCabinList.aspx");
 
                     var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-                    var response = await httpClient.PostAsync(deleteUrl, content);
+                    System.Diagnostics.Debug.WriteLine($"批量删除请求: {deleteUrl}\n请求体: {requestBody}");
+                    // 先测试到这一步，不真的去请求删除，测试获取ids是否成功
+                    return true;
 
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var responseContent = await response.Content.ReadAsStringAsync();
-                        System.Diagnostics.Debug.WriteLine($"删除响应: {responseContent}");
-                        return true;
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"删除失败: {response.StatusCode} - {response.ReasonPhrase}");
-                        return false;
-                    }
+                    // 发送POST请求
+                    //var response = await httpClient.PostAsync(deleteUrl, content);
+
+                    //if (response.IsSuccessStatusCode)
+                    //{
+                    //    var responseContent = await response.Content.ReadAsStringAsync();
+                    //    System.Diagnostics.Debug.WriteLine($"删除响应: {responseContent}");
+                    //    return true;
+                    //}
+                    //else
+                    //{
+                    //    System.Diagnostics.Debug.WriteLine($"删除失败: {response.StatusCode} - {response.ReasonPhrase}");
+                    //    return false;
+                    //}
                 }
             }
             catch (Exception ex)
@@ -1552,6 +1572,965 @@ namespace WF_MUAI_34
             public int RowCount { get; set; }
             public int PageCount { get; set; }
             public bool GetRowCount { get; set; }
+        }
+
+        /// <summary>
+        /// 表单检查结果数据结构
+        /// </summary>
+        public class FormCheckResult
+        {
+            [JsonProperty("userNameInput")]
+            public bool UserNameInput { get; set; }
+            
+            [JsonProperty("passwordInput")]
+            public bool PasswordInput { get; set; }
+            
+            [JsonProperty("codeInput")]
+            public bool CodeInput { get; set; }
+            
+            [JsonProperty("checkboxInput")]
+            public bool CheckboxInput { get; set; }
+            
+            [JsonProperty("loginButton")]
+            public bool LoginButton { get; set; }
+            
+            [JsonProperty("url")]
+            public string Url { get; set; } = string.Empty;
+            
+            [JsonProperty("title")]
+            public string Title { get; set; } = string.Empty;
+            
+            [JsonProperty("readyState")]
+            public string ReadyState { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// 页面测试结果数据结构
+        /// </summary>
+        public class PageTestResult
+        {
+            [JsonProperty("url")]
+            public string Url { get; set; } = string.Empty;
+            
+            [JsonProperty("title")]
+            public string Title { get; set; } = string.Empty;
+            
+            [JsonProperty("userNameExists")]
+            public bool UserNameExists { get; set; }
+            
+            [JsonProperty("passwordExists")]
+            public bool PasswordExists { get; set; }
+            
+            [JsonProperty("codeExists")]
+            public bool CodeExists { get; set; }
+            
+            [JsonProperty("checkboxExists")]
+            public bool CheckboxExists { get; set; }
+            
+            [JsonProperty("loginBtnExists")]
+            public bool LoginBtnExists { get; set; }
+            
+            [JsonProperty("readyState")]
+            public string ReadyState { get; set; } = string.Empty;
+            
+            [JsonProperty("bodyExists")]
+            public bool BodyExists { get; set; }
+            
+            [JsonProperty("formExists")]
+            public bool FormExists { get; set; }
+            
+            [JsonProperty("allInputs")]
+            public List<InputInfo>? AllInputs { get; set; }
+        }
+
+        /// <summary>
+        /// 输入框信息数据结构
+        /// </summary>
+        public class InputInfo
+        {
+            [JsonProperty("id")]
+            public string Id { get; set; } = string.Empty;
+            
+            [JsonProperty("name")]
+            public string Name { get; set; } = string.Empty;
+            
+            [JsonProperty("type")]
+            public string Type { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// 填写结果数据结构
+        /// </summary>
+        public class FillResult
+        {
+            [JsonProperty("success")]
+            public bool Success { get; set; }
+            
+            [JsonProperty("actualValue")]
+            public string ActualValue { get; set; } = string.Empty;
+            
+            [JsonProperty("expectedValue")]
+            public string ExpectedValue { get; set; } = string.Empty;
+            
+            [JsonProperty("elementType")]
+            public string ElementType { get; set; } = string.Empty;
+            
+            [JsonProperty("elementName")]
+            public string ElementName { get; set; } = string.Empty;
+            
+            [JsonProperty("error")]
+            public string Error { get; set; } = string.Empty;
+            
+            [JsonProperty("message")]
+            public string Message { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// 复选框操作结果数据结构
+        /// </summary>
+        public class CheckboxResult
+        {
+            [JsonProperty("success")]
+            public bool Success { get; set; }
+            
+            [JsonProperty("wasChecked")]
+            public bool WasChecked { get; set; }
+            
+            [JsonProperty("isChecked")]
+            public bool IsChecked { get; set; }
+            
+            [JsonProperty("action")]
+            public string Action { get; set; } = string.Empty;
+            
+            [JsonProperty("error")]
+            public string Error { get; set; } = string.Empty;
+            
+            [JsonProperty("message")]
+            public string Message { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// 自动填写验证结果
+        /// </summary>
+        public class AutoFillVerifyResult
+        {
+            public bool UsernameOk { get; set; }
+            public bool PasswordOk { get; set; }
+            public bool CheckboxOk { get; set; }
+            public string UsernameValue { get; set; } = string.Empty;
+            public string PasswordValue { get; set; } = string.Empty;
+            public bool CheckboxChecked { get; set; }
+        }
+
+        /// <summary>
+        /// 初始化自动登录检查定时器
+        /// </summary>
+        private void InitializeAutoLoginTimer()
+        {
+            loginCheckTimer = new System.Windows.Forms.Timer();
+            loginCheckTimer.Interval = 2000; // 每2秒检查一次
+            loginCheckTimer.Tick += LoginCheckTimer_Tick;
+        }
+
+        /// <summary>
+        /// 登录检查定时器事件
+        /// </summary>
+        private async void LoginCheckTimer_Tick(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (webViewB3B.CoreWebView2 == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("WebView2 未初始化");
+                    return;
+                }
+
+                if (!isAutoLoginEnabled)
+                {
+                    System.Diagnostics.Debug.WriteLine("自动登录已禁用");
+                    return;
+                }
+
+                if (!Config.Instance.EnableAutoLogin)
+                {
+                    System.Diagnostics.Debug.WriteLine("配置中自动登录已禁用");
+                    return;
+                }
+
+                string currentUrl = webViewB3B.CoreWebView2.Source;
+                System.Diagnostics.Debug.WriteLine($"🔍 当前URL: {currentUrl}");
+                
+                // 检查是否在登录页面 - 更精确的匹配
+                if (currentUrl.Contains("Login.aspx") || currentUrl.Contains("oper.cddyf.net/Login"))
+                {
+                    System.Diagnostics.Debug.WriteLine("✅ 检测到登录页面，开始自动登录...");
+                    
+                    // 暂停定时器，避免重复触发
+                    loginCheckTimer.Stop();
+                    
+                    // 等待页面完全加载
+                    await Task.Delay(3000);
+                    
+                    // 执行自动登录
+                    await PerformAutoLoginAsync();
+                }
+                else if (currentUrl.Contains("fuwu.cddyf.net"))
+                {
+                    System.Diagnostics.Debug.WriteLine("📍 在主站页面，等待跳转到登录页面...");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"📍 在其他页面: {currentUrl}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"登录检查定时器发生错误: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 执行自动登录
+        /// </summary>
+        private async Task PerformAutoLoginAsync()
+        {
+            try
+            {
+                // 更新状态
+                this.Invoke(new Action(() =>
+                {
+                    this.Text = "B3BForm - 正在自动登录...";
+                }));
+
+                System.Diagnostics.Debug.WriteLine("开始执行自动登录...");
+
+                // 等待页面完全加载，最多重试5次
+                bool formExists = false;
+                for (int i = 0; i < 5; i++)
+                {
+                    System.Diagnostics.Debug.WriteLine($"第{i + 1}次检查登录表单...");
+                    formExists = await CheckLoginFormExistsAsync();
+                    if (formExists)
+                    {
+                        break;
+                    }
+                    await Task.Delay(2000); // 等待2秒后重试
+                }
+
+                if (!formExists)
+                {
+                    System.Diagnostics.Debug.WriteLine("登录表单检查失败，所有重试都失败");
+                    this.Invoke(new Action(() =>
+                    {
+                        this.Text = "B3BForm - 登录表单未找到";
+                        MessageBox.Show("无法找到登录表单元素，请检查页面是否已完全加载。", "登录表单未找到", 
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }));
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine("登录表单检查成功，开始填写...");
+
+                // 填写用户名
+                await FillInputFieldAsync("txtUserName", Config.Instance.LoginUsername);
+                await Task.Delay(800);
+
+                // 填写密码
+                await FillInputFieldAsync("txtPassword", Config.Instance.LoginPassword);
+                await Task.Delay(800);
+
+                // 勾选记住密码
+                await CheckRememberPasswordAsync();
+                await Task.Delay(500);
+
+                // 等待一下确保所有操作完成
+                await Task.Delay(1000);
+                
+                // 验证填写结果
+                var verifyResult = await VerifyAutoFillResultAsync();
+                
+                // 暂时跳过验证码识别，只完成基本填写
+                this.Invoke(new Action(() =>
+                {
+                    this.Text = "B3BForm - 已填写用户名和密码，请手动输入验证码";
+                    
+                    string statusMessage = "✅ 自动填写完成！\n\n已处理的项目:\n";
+                    statusMessage += $"• 用户名: {(verifyResult.UsernameOk ? "✅" : "❌")} 18988486220\n";
+                    statusMessage += $"• 密码: {(verifyResult.PasswordOk ? "✅" : "❌")} ********\n";
+                    statusMessage += $"• 记住密码: {(verifyResult.CheckboxOk ? "✅" : "❌")} 已勾选\n\n";
+                    statusMessage += "📝 下一步: 请手动输入验证码后点击登录按钮。";
+                    
+                    MessageBox.Show(statusMessage, "自动填写状态", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }));
+
+                // 停止定时器，避免重复触发
+                loginCheckTimer.Stop();
+                
+                System.Diagnostics.Debug.WriteLine("✅ 自动填写完成");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 自动登录异常: {ex.Message}");
+                this.Invoke(new Action(() =>
+                {
+                    this.Text = "B3BForm - 自动登录失败";
+                    MessageBox.Show($"自动登录过程中发生错误:\n{ex.Message}\n\n请尝试手动填写登录信息。", "自动登录错误", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+            }
+        }
+
+        /// <summary>
+        /// 检查登录表单是否存在
+        /// </summary>
+        private async Task<bool> CheckLoginFormExistsAsync()
+        {
+            try
+            {
+                string script = @"
+                    (function() {
+                        var result = {
+                            userNameInput: !!document.getElementById('txtUserName'),
+                            passwordInput: !!document.getElementById('txtPassword'),
+                            codeInput: !!document.getElementById('txtCode'),
+                            checkboxInput: !!document.getElementById('chkJizhu'),
+                            loginButton: !!document.getElementById('btnLogon'),
+                            url: window.location.href,
+                            title: document.title,
+                            readyState: document.readyState
+                        };
+                        return JSON.stringify(result);
+                    })();
+                ";
+
+                var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
+                string jsonResult = result.Trim('"').Replace("\\\"", "\"");
+                System.Diagnostics.Debug.WriteLine($"登录表单检查详情: {jsonResult}");
+                
+                // 解析JSON结果 - 修复类型转换问题
+                var formCheck = JsonConvert.DeserializeObject<FormCheckResult>(jsonResult);
+                bool allElementsExist = formCheck.UserNameInput && formCheck.PasswordInput && formCheck.CodeInput;
+                
+                System.Diagnostics.Debug.WriteLine($"表单元素检查结果: 用户名={formCheck.UserNameInput}, 密码={formCheck.PasswordInput}, 验证码={formCheck.CodeInput}, 复选框={formCheck.CheckboxInput}, 登录按钮={formCheck.LoginButton}");
+                
+                return allElementsExist;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"检查登录表单异常: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 填写输入框 - 针对WebView2优化
+        /// </summary>
+        private async Task FillInputFieldAsync(string fieldId, string value)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"🖊️ 开始填写 {fieldId} = {value}");
+                
+                // 使用更兼容的JavaScript方法
+                string script = $@"
+                    (function() {{
+                        try {{
+                            var input = document.getElementById('{fieldId}');
+                            if (!input) {{
+                                return JSON.stringify({{
+                                    success: false,
+                                    error: 'element_not_found',
+                                    message: '元素未找到: {fieldId}'
+                                }});
+                            }}
+                            
+                            // 清空现有值
+                            input.value = '';
+                            
+                            // 聚焦到输入框
+                            input.focus();
+                            
+                            // 设置新值
+                            input.value = '{value}';
+                            
+                            // 触发多种事件以确保兼容性
+                            var events = ['input', 'change', 'keyup', 'blur'];
+                            events.forEach(function(eventType) {{
+                                var event = new Event(eventType, {{ bubbles: true, cancelable: true }});
+                                input.dispatchEvent(event);
+                            }});
+                            
+                            // 验证值是否设置成功
+                            var actualValue = input.value;
+                            var success = actualValue === '{value}';
+                            
+                            return JSON.stringify({{
+                                success: success,
+                                actualValue: actualValue,
+                                expectedValue: '{value}',
+                                elementType: input.type,
+                                elementName: input.name
+                            }});
+                        }} catch (error) {{
+                            return JSON.stringify({{
+                                success: false,
+                                error: 'script_error',
+                                message: error.message
+                            }});
+                        }}
+                    }})();
+                ";
+
+                var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
+                string jsonResult = result.Trim('"').Replace("\\\"", "\"");
+                System.Diagnostics.Debug.WriteLine($"📝 填写 {fieldId} 详细结果: {jsonResult}");
+                
+                var fillResult = JsonConvert.DeserializeObject<FillResult>(jsonResult);
+                
+                if (fillResult.Success)
+                {
+                    System.Diagnostics.Debug.WriteLine($"✅ 成功填写 {fieldId}: {fillResult.ActualValue}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ 填写 {fieldId} 失败: {fillResult.Error} - {fillResult.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 填写输入框 {fieldId} 异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 勾选记住密码 - 针对WebView2优化
+        /// </summary>
+        private async Task CheckRememberPasswordAsync()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("☑️ 开始勾选记住密码");
+                
+                string script = @"
+                    (function() {
+                        try {
+                            var checkbox = document.getElementById('chkJizhu');
+                            if (!checkbox) {
+                                return JSON.stringify({
+                                    success: false,
+                                    error: 'element_not_found',
+                                    message: '记住密码复选框未找到'
+                                });
+                            }
+                            
+                            var wasChecked = checkbox.checked;
+                            
+                            // 确保复选框被勾选
+                            checkbox.checked = true;
+                            
+                            // 触发change事件
+                            var changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                            checkbox.dispatchEvent(changeEvent);
+                            
+                            // 也触发click事件以确保兼容性
+                            var clickEvent = new Event('click', { bubbles: true, cancelable: true });
+                            checkbox.dispatchEvent(clickEvent);
+                            
+                            return JSON.stringify({
+                                success: true,
+                                wasChecked: wasChecked,
+                                isChecked: checkbox.checked,
+                                action: wasChecked ? 'already_checked' : 'checked'
+                            });
+                        } catch (error) {
+                            return JSON.stringify({
+                                success: false,
+                                error: 'script_error',
+                                message: error.message
+                            });
+                        }
+                    })();
+                ";
+
+                var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
+                string jsonResult = result.Trim('"').Replace("\\\"", "\"");
+                System.Diagnostics.Debug.WriteLine($"📋 勾选记住密码详细结果: {jsonResult}");
+                
+                var checkResult = JsonConvert.DeserializeObject<CheckboxResult>(jsonResult);
+                
+                if (checkResult.Success)
+                {
+                    if (checkResult.Action == "already_checked")
+                    {
+                        System.Diagnostics.Debug.WriteLine("✅ 记住密码已经勾选");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("✅ 成功勾选记住密码");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ 勾选记住密码失败: {checkResult.Error} - {checkResult.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 勾选记住密码异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 获取验证码图片并识别文字
+        /// </summary>
+        private async Task<string> GetCaptchaTextAsync()
+        {
+            try
+            {
+                // 获取验证码图片的Base64数据
+                string captchaBase64 = await GetCaptchaImageBase64Async();
+                if (string.IsNullOrEmpty(captchaBase64))
+                {
+                    return string.Empty;
+                }
+
+                // 使用简单的OCR识别（您可以替换为阿里云百炼API）
+                string captchaText = await RecognizeCaptchaAsync(captchaBase64);
+                
+                System.Diagnostics.Debug.WriteLine($"验证码识别结果: {captchaText}");
+                return captchaText;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"获取验证码失败: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// 获取验证码图片的Base64数据
+        /// </summary>
+        private async Task<string> GetCaptchaImageBase64Async()
+        {
+            try
+            {
+                string script = @"
+                    (function() {
+                        var img = document.getElementById('imgValidateCode');
+                        if (img && img.complete) {
+                            var canvas = document.createElement('canvas');
+                            var ctx = canvas.getContext('2d');
+                            canvas.width = img.naturalWidth;
+                            canvas.height = img.naturalHeight;
+                            ctx.drawImage(img, 0, 0);
+                            return canvas.toDataURL('image/png');
+                        }
+                        return '';
+                    })();
+                ";
+
+                var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
+                string base64Data = result.Trim('"');
+                
+                if (base64Data.StartsWith("data:image/png;base64,"))
+                {
+                    return base64Data.Substring("data:image/png;base64,".Length);
+                }
+                
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"获取验证码图片失败: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// 识别验证码（简单实现，您可以替换为阿里云百炼API）
+        /// </summary>
+        private async Task<string> RecognizeCaptchaAsync(string base64Image)
+        {
+            try
+            {
+                // 这里是简单的本地OCR实现
+                // 您可以替换为调用阿里云百炼API
+                
+                // 将Base64转换为图像
+                byte[] imageBytes = Convert.FromBase64String(base64Image);
+                
+                // 保存临时图片文件用于调试
+                string tempPath = Path.Combine(Path.GetTempPath(), "captcha_temp.png");
+                await File.WriteAllBytesAsync(tempPath, imageBytes);
+                
+                // 这里返回一个示例结果，您需要替换为实际的OCR调用
+                // 可以调用阿里云百炼API或其他OCR服务
+                return await CallAliCloudOCRAsync(base64Image);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"识别验证码失败: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// 调用阿里云百炼OCR API（示例实现）
+        /// </summary>
+        private async Task<string> CallAliCloudOCRAsync(string base64Image)
+        {
+            try
+            {
+                // 检查是否启用阿里云OCR
+                if (!Config.Instance.UseAliCloudOCR || Config.Instance.AliCloudApiKey == "YOUR_API_KEY")
+                {
+                    // 如果未配置API Key或禁用了阿里云OCR，使用备选方案
+                    return await SimpleNumberRecognitionAsync(base64Image);
+                }
+                
+                using (var httpClient = new HttpClient())
+                {
+                    // 设置请求头
+                    httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {Config.Instance.AliCloudApiKey}");
+                    httpClient.DefaultRequestHeaders.Add("X-DashScope-Async", "enable");
+                    
+                    // 构建请求体
+                    var requestBody = new
+                    {
+                        model = Config.Instance.AliCloudModel,
+                        input = new
+                        {
+                            messages = new[]
+                            {
+                                new
+                                {
+                                    role = "user",
+                                    content = new object[]
+                                    {
+                                        new
+                                        {
+                                            image = $"data:image/png;base64,{base64Image}"
+                                        },
+                                        new
+                                        {
+                                            text = "请识别这个验证码图片中的数字或字母，只返回识别出的字符，不要包含任何其他内容。"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        parameters = new
+                        {
+                            result_format = "message"
+                        }
+                    };
+                    
+                    string jsonBody = JsonConvert.SerializeObject(requestBody);
+                    var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+                    
+                    var response = await httpClient.PostAsync(Config.Instance.AliCloudApiUrl, content);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var responseContent = await response.Content.ReadAsStringAsync();
+                        var result = JsonConvert.DeserializeObject<dynamic>(responseContent);
+                        
+                        // 解析返回结果
+                        if (result?.output?.choices != null && result.output.choices.Count > 0)
+                        {
+                            string recognizedText = result.output.choices[0].message.content.ToString();
+                            // 清理识别结果，只保留数字和字母
+                            string cleanText = Regex.Replace(recognizedText, @"[^\w]", "");
+                            return cleanText;
+                        }
+                    }
+                }
+                
+                // 如果API调用失败，使用备选方案
+                return await SimpleNumberRecognitionAsync(base64Image);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"调用阿里云OCR失败: {ex.Message}");
+                // 如果API调用失败，使用备选方案
+                return await SimpleNumberRecognitionAsync(base64Image);
+            }
+        }
+
+        /// <summary>
+        /// 简单的数字识别（备选方案）
+        /// </summary>
+        private async Task<string> SimpleNumberRecognitionAsync(string base64Image)
+        {
+            await Task.Delay(100); // 模拟处理时间
+            
+            try
+            {
+                // 保存图片到临时文件供用户查看
+                byte[] imageBytes = Convert.FromBase64String(base64Image);
+                string tempPath = Path.Combine(Path.GetTempPath(), "captcha_for_manual_input.png");
+                await File.WriteAllBytesAsync(tempPath, imageBytes);
+                
+                // 在UI线程中显示对话框让用户手动输入
+                string userInput = string.Empty;
+                this.Invoke(new Action(() =>
+                {
+                    var inputForm = new CaptchaInputForm(tempPath);
+                    if (inputForm.ShowDialog() == DialogResult.OK)
+                    {
+                        userInput = inputForm.CaptchaText;
+                    }
+                }));
+                
+                return userInput;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"简单识别失败: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// 点击登录按钮
+        /// </summary>
+        private async Task ClickLoginButtonAsync()
+        {
+            try
+            {
+                string script = @"
+                    (function() {
+                        var loginBtn = document.getElementById('btnLogon');
+                        if (loginBtn) {
+                            loginBtn.click();
+                            return true;
+                        }
+                        return false;
+                    })();
+                ";
+
+                var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
+                bool success = result.Trim('"').ToLower() == "true";
+                System.Diagnostics.Debug.WriteLine($"点击登录按钮: {(success ? "成功" : "失败")}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"点击登录按钮失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 启用自动登录
+        /// </summary>
+        public void EnableAutoLogin()
+        {
+            isAutoLoginEnabled = true;
+            if (loginCheckTimer != null)
+            {
+                loginCheckTimer.Start();
+                System.Diagnostics.Debug.WriteLine($"自动登录定时器已启动，间隔: {loginCheckTimer.Interval}ms");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("警告：自动登录定时器为空");
+            }
+        }
+
+        /// <summary>
+        /// 禁用自动登录
+        /// </summary>
+        public void DisableAutoLogin()
+        {
+            isAutoLoginEnabled = false;
+            loginCheckTimer?.Stop();
+        }
+
+        /// <summary>
+        /// 手动触发自动登录（用于测试）
+        /// </summary>
+        public async Task TriggerAutoLoginAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("手动触发自动登录");
+            if (webViewB3B.CoreWebView2 != null)
+            {
+                string currentUrl = webViewB3B.CoreWebView2.Source;
+                System.Diagnostics.Debug.WriteLine($"当前URL: {currentUrl}");
+                await PerformAutoLoginAsync();
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("WebView2 未初始化，无法触发自动登录");
+            }
+        }
+
+        /// <summary>
+        /// 添加一个测试方法来检查页面元素
+        /// </summary>
+        public async Task TestPageElementsAsync()
+        {
+            try
+            {
+                if (webViewB3B.CoreWebView2 == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("WebView2 未初始化");
+                    return;
+                }
+
+                string script = @"
+                    (function() {
+                        var result = {
+                            url: window.location.href,
+                            title: document.title,
+                            userNameExists: !!document.getElementById('txtUserName'),
+                            passwordExists: !!document.getElementById('txtPassword'),
+                            codeExists: !!document.getElementById('txtCode'),
+                            checkboxExists: !!document.getElementById('chkJizhu'),
+                            loginBtnExists: !!document.getElementById('btnLogon'),
+                            readyState: document.readyState,
+                            bodyExists: !!document.body,
+                            formExists: !!document.querySelector('form'),
+                            allInputs: Array.from(document.querySelectorAll('input')).map(input => ({
+                                id: input.id,
+                                name: input.name,
+                                type: input.type
+                            }))
+                        };
+                        return JSON.stringify(result);
+                    })();
+                ";
+
+                var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
+                string jsonResult = result.Trim('"').Replace("\\\"", "\"");
+                System.Diagnostics.Debug.WriteLine($"页面元素检查结果: {jsonResult}");
+                
+                // 解析结果并格式化显示 - 修复类型转换问题
+                var pageInfo = JsonConvert.DeserializeObject<PageTestResult>(jsonResult);
+                string formattedResult = $"页面信息:\n" +
+                    $"URL: {pageInfo.Url}\n" +
+                    $"标题: {pageInfo.Title}\n" +
+                    $"页面状态: {pageInfo.ReadyState}\n\n" +
+                    $"登录元素检查:\n" +
+                    $"✓ 用户名输入框: {(pageInfo.UserNameExists ? "存在" : "不存在")}\n" +
+                    $"✓ 密码输入框: {(pageInfo.PasswordExists ? "存在" : "不存在")}\n" +
+                    $"✓ 验证码输入框: {(pageInfo.CodeExists ? "存在" : "不存在")}\n" +
+                    $"✓ 记住密码复选框: {(pageInfo.CheckboxExists ? "存在" : "不存在")}\n" +
+                    $"✓ 登录按钮: {(pageInfo.LoginBtnExists ? "存在" : "不存在")}\n\n" +
+                    $"页面中所有输入框数量: {pageInfo.AllInputs?.Count ?? 0}";
+                
+                // 显示结果给用户
+                this.Invoke(new Action(() =>
+                {
+                    MessageBox.Show(formattedResult, "页面元素检查结果", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"检查页面元素失败: {ex.Message}");
+                this.Invoke(new Action(() =>
+                {
+                    MessageBox.Show($"检查页面元素时发生错误:\n{ex.Message}", "检查失败", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+            }
+        }
+
+        /// <summary>
+        /// 验证自动填写结果
+        /// </summary>
+        private async Task<AutoFillVerifyResult> VerifyAutoFillResultAsync()
+        {
+            var result = new AutoFillVerifyResult();
+            
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🔍 开始验证自动填写结果...");
+                
+                string script = @"
+                    (function() {
+                        try {
+                            var username = document.getElementById('txtUserName');
+                            var password = document.getElementById('txtPassword');
+                            var checkbox = document.getElementById('chkJizhu');
+                            
+                            return JSON.stringify({
+                                usernameValue: username ? username.value : '',
+                                passwordValue: password ? password.value : '',
+                                checkboxChecked: checkbox ? checkbox.checked : false,
+                                usernameExists: !!username,
+                                passwordExists: !!password,
+                                checkboxExists: !!checkbox
+                            });
+                        } catch (error) {
+                            return JSON.stringify({
+                                error: error.message
+                            });
+                        }
+                    })();
+                ";
+
+                var jsResult = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
+                string jsonResult = jsResult.Trim('"').Replace("\\\"", "\"");
+                System.Diagnostics.Debug.WriteLine($"🔍 验证结果: {jsonResult}");
+                
+                var verifyData = JsonConvert.DeserializeObject<dynamic>(jsonResult);
+                
+                result.UsernameValue = verifyData.usernameValue?.ToString() ?? "";
+                result.PasswordValue = verifyData.passwordValue?.ToString() ?? "";
+                result.CheckboxChecked = verifyData.checkboxChecked ?? false;
+                
+                // 检查是否符合预期
+                result.UsernameOk = result.UsernameValue == Config.Instance.LoginUsername;
+                result.PasswordOk = result.PasswordValue == Config.Instance.LoginPassword;
+                result.CheckboxOk = result.CheckboxChecked;
+                
+                System.Diagnostics.Debug.WriteLine($"✅ 验证完成: 用户名={result.UsernameOk}, 密码={result.PasswordOk}, 复选框={result.CheckboxOk}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 验证自动填写结果异常: {ex.Message}");
+            }
+            
+            return result;
+        }
+
+        /// <summary>
+        /// 手动测试自动登录功能（调试用）
+        /// </summary>
+        public async Task ManualTestAutoLoginAsync()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🧪 开始手动测试自动登录功能...");
+                
+                if (webViewB3B.CoreWebView2 == null)
+                {
+                    MessageBox.Show("WebView2 未初始化，请先打开B3B网站。", "测试失败", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                string currentUrl = webViewB3B.CoreWebView2.Source;
+                System.Diagnostics.Debug.WriteLine($"🔍 当前测试URL: {currentUrl}");
+
+                if (!currentUrl.Contains("Login.aspx") && !currentUrl.Contains("oper.cddyf.net/Login"))
+                {
+                    var result = MessageBox.Show($"当前页面不是登录页面:\n{currentUrl}\n\n是否继续测试？", 
+                        "页面确认", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    if (result != DialogResult.Yes)
+                    {
+                        return;
+                    }
+                }
+
+                // 执行测试
+                await PerformAutoLoginAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 手动测试失败: {ex.Message}");
+                MessageBox.Show($"手动测试自动登录时发生错误:\n{ex.Message}", "测试错误", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

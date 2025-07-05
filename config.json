@@ -1,0 +1,9 @@
+{
+  "AliCloudApiKey": "sk-7be51a35e4ea4ee9bc3e0d2584e0a33a",
+  "AliCloudApiUrl": "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
+  "AliCloudModel": "qwen-vl-plus",
+  "EnableAutoLogin": true,
+  "LoginUsername": "18988486220",
+  "LoginPassword": "zg123456",
+  "UseAliCloudOCR": true
+}
