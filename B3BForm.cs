@@ -25,7 +25,12 @@ namespace WF_MUAI_34
         private System.Windows.Forms.Timer dailyDeleteTimer = null!; // 每日删除定时器
         private bool isAutoDeleteEnabled = false; // 是否启用自动删除
         private TimeSpan deleteTime = new TimeSpan(23, 58, 0); // 默认删除时间 23:58
-        
+
+        // 定时上传全部相关属性
+        private System.Windows.Forms.Timer dailyPostAllTimer = null!; // 每日上传全部定时器
+        private bool isAutoPostAllEnabled = false; // 是否启用自动上传全部
+        private TimeSpan postAllTime = new TimeSpan(1, 0, 0); // 默认上传全部时间 09:00
+
         // 自动登录相关属性
         private const string LOGIN_URL = "https://oper.cddyf.net/Login.aspx";
         private bool isAutoLoginEnabled = true; // 是否启用自动登录
@@ -36,6 +41,7 @@ namespace WF_MUAI_34
             InitializeComponent();
             InitializeAsync(); // 异步初始化 WebView2 控件
             InitializeDailyDeleteTimer(); // 初始化定时任务
+            InitializeDailyPostAllTimer(); // 初始化定时上传全部任务
             InitializeUIControls(); // 初始化UI控件
             InitializeAutoLoginTimer(); // 初始化自动登录检查定时器
         }
@@ -48,30 +54,13 @@ namespace WF_MUAI_34
             // 设置默认时间
             dateTimePickerDeleteTime.Value = DateTime.Today.Add(deleteTime);
             checkBoxAutoDelete.Checked = isAutoDeleteEnabled;
+            
+            // 设置定时上传全部默认时间
+            dateTimePickerPostAllTime.Value = DateTime.Today.Add(postAllTime);
+            checkBoxAutoPostAll.Checked = isAutoPostAllEnabled;
+            
             UpdateStatusLabel();
-            UpdateTimerButtonText();
-        }
-
-        /// <summary>
-        /// 更新定时器按钮文本
-        /// </summary>
-        private void UpdateTimerButtonText()
-        {
-            if (isAutoDeleteEnabled)
-            {
-                buttonToggleTimer.Text = "关闭定时";
-                buttonToggleTimer.BackColor = Color.LightCoral;
-                buttonToggleTimer.ForeColor = Color.Black;
-                string timeStr = deleteTime.ToString(@"hh\:mm");
-                toolTip1.SetToolTip(buttonToggleTimer, $"点击关闭定时删除任务\n当前设置：每天{timeStr}执行");
-            }
-            else
-            {
-                buttonToggleTimer.Text = "启动定时";
-                buttonToggleTimer.BackColor = Color.LightGreen;
-                buttonToggleTimer.ForeColor = Color.Black;
-                toolTip1.SetToolTip(buttonToggleTimer, "点击启动定时删除任务\n将按设置的时间自动删除所有MUAI_34政策");
-            }
+            UpdatePostAllStatusLabel();
         }
 
         /// <summary>
@@ -93,6 +82,24 @@ namespace WF_MUAI_34
         }
 
         /// <summary>
+        /// 更新上传全部状态标签
+        /// </summary>
+        private void UpdatePostAllStatusLabel()
+        {
+            if (isAutoPostAllEnabled)
+            {
+                string timeStr = postAllTime.ToString(@"hh\:mm");
+                labelPostAllStatus.Text = $"状态：已启用 - 每天{timeStr}执行";
+                labelPostAllStatus.ForeColor = Color.Green;
+            }
+            else
+            {
+                labelPostAllStatus.Text = "状态：未启用";
+                labelPostAllStatus.ForeColor = Color.Gray;
+            }
+        }
+
+        /// <summary>
         /// 初始化每日删除定时器
         /// </summary>
         private void InitializeDailyDeleteTimer()
@@ -100,6 +107,17 @@ namespace WF_MUAI_34
             dailyDeleteTimer = new System.Windows.Forms.Timer();
             dailyDeleteTimer.Interval = 60000; // 每分钟检查一次
             dailyDeleteTimer.Tick += DailyDeleteTimer_Tick;
+            // 默认不启动定时器，需要手动启用
+        }
+
+        /// <summary>
+        /// 初始化每日上传全部定时器
+        /// </summary>
+        private void InitializeDailyPostAllTimer()
+        {
+            dailyPostAllTimer = new System.Windows.Forms.Timer();
+            dailyPostAllTimer.Interval = 60000; // 每分钟检查一次
+            dailyPostAllTimer.Tick += DailyPostAllTimer_Tick;
             // 默认不启动定时器，需要手动启用
         }
 
@@ -112,33 +130,31 @@ namespace WF_MUAI_34
             {
                 DateTime now = DateTime.Now;
                 TimeSpan currentTime = now.TimeOfDay;
-                
+
                 // 检查是否到了设定的删除时间（允许1分钟的误差）
                 if (Math.Abs((currentTime - deleteTime).TotalMinutes) < 1)
                 {
                     // 暂停定时器以防止重复触发
                     dailyDeleteTimer.Stop();
-                    
+
                     // 暂时禁用控件
-                    buttonToggleTimer.Enabled = false;
                     checkBoxAutoDelete.Enabled = false;
                     dateTimePickerDeleteTime.Enabled = false;
-                    
+
                     // 更新状态标签
                     if (labelDeleteStatus != null)
                     {
                         labelDeleteStatus.Text = "状态：正在执行删除...";
                         labelDeleteStatus.ForeColor = Color.Orange;
                     }
-                    
+
                     // 异步执行删除操作
                     bool success = await DeleteAllPoliciesAsync();
-                    
+
                     // 恢复控件状态
-                    buttonToggleTimer.Enabled = true;
                     checkBoxAutoDelete.Enabled = true;
                     dateTimePickerDeleteTime.Enabled = true;
-                    
+
                     // 更新状态标签
                     if (labelDeleteStatus != null)
                     {
@@ -153,7 +169,7 @@ namespace WF_MUAI_34
                             labelDeleteStatus.ForeColor = Color.Red;
                         }
                     }
-                    
+
                     // 等待1分钟后恢复正常状态显示
                     System.Windows.Forms.Timer statusTimer = new System.Windows.Forms.Timer();
                     statusTimer.Interval = 60000; // 1分钟
@@ -164,7 +180,7 @@ namespace WF_MUAI_34
                         statusTimer.Dispose();
                     };
                     statusTimer.Start();
-                    
+
                     // 重新启动定时器
                     if (isAutoDeleteEnabled)
                     {
@@ -175,23 +191,115 @@ namespace WF_MUAI_34
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"定时删除任务发生错误: {ex.Message}");
-                
+
                 // 恢复控件状态
-                buttonToggleTimer.Enabled = true;
                 checkBoxAutoDelete.Enabled = true;
                 dateTimePickerDeleteTime.Enabled = true;
-                
+
                 // 更新状态标签
                 if (labelDeleteStatus != null)
                 {
                     labelDeleteStatus.Text = "状态：执行出错 - 等待重试";
                     labelDeleteStatus.ForeColor = Color.Red;
                 }
-                
+
                 // 如果发生错误，确保定时器继续运行
                 if (isAutoDeleteEnabled && !dailyDeleteTimer.Enabled)
                 {
                     dailyDeleteTimer.Start();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 定时上传全部事件处理
+        /// </summary>
+        private async void DailyPostAllTimer_Tick(object? sender, EventArgs e)
+        {
+            try
+            {
+                DateTime now = DateTime.Now;
+                TimeSpan currentTime = now.TimeOfDay;
+
+                // 检查是否到了设定的上传全部时间（允许1分钟的误差）
+                if (Math.Abs((currentTime - postAllTime).TotalMinutes) < 1)
+                {
+                    // 暂停定时器以防止重复触发
+                    dailyPostAllTimer.Stop();
+
+                    // 暂时禁用控件
+                    checkBoxAutoPostAll.Enabled = false;
+                    dateTimePickerPostAllTime.Enabled = false;
+                    buttonPostAllPolicy.Enabled = false;
+
+                    // 更新状态标签
+                    if (labelPostAllStatus != null)
+                    {
+                        labelPostAllStatus.Text = "状态：正在执行上传...";
+                        labelPostAllStatus.ForeColor = Color.Orange;
+                    }
+
+                    // 异步执行上传全部操作
+                    bool success = await PostAllPoliciesScheduledAsync();
+
+                    // 恢复控件状态
+                    checkBoxAutoPostAll.Enabled = true;
+                    dateTimePickerPostAllTime.Enabled = true;
+                    buttonPostAllPolicy.Enabled = true;
+
+                    // 更新状态标签
+                    if (labelPostAllStatus != null)
+                    {
+                        if (success)
+                        {
+                            labelPostAllStatus.Text = "状态：上传成功 - 等待下次执行";
+                            labelPostAllStatus.ForeColor = Color.Blue;
+                        }
+                        else
+                        {
+                            labelPostAllStatus.Text = "状态：上传失败 - 等待下次执行";
+                            labelPostAllStatus.ForeColor = Color.Red;
+                        }
+                    }
+
+                    // 等待1分钟后恢复正常状态显示
+                    System.Windows.Forms.Timer statusTimer = new System.Windows.Forms.Timer();
+                    statusTimer.Interval = 60000; // 1分钟
+                    statusTimer.Tick += (s, args) =>
+                    {
+                        UpdatePostAllStatusLabel();
+                        statusTimer.Stop();
+                        statusTimer.Dispose();
+                    };
+                    statusTimer.Start();
+
+                    // 重新启动定时器
+                    if (isAutoPostAllEnabled)
+                    {
+                        dailyPostAllTimer.Start();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"定时上传全部任务发生错误: {ex.Message}");
+
+                // 恢复控件状态
+                checkBoxAutoPostAll.Enabled = true;
+                dateTimePickerPostAllTime.Enabled = true;
+                buttonPostAllPolicy.Enabled = true;
+
+                // 更新状态标签
+                if (labelPostAllStatus != null)
+                {
+                    labelPostAllStatus.Text = "状态：执行出错 - 等待重试";
+                    labelPostAllStatus.ForeColor = Color.Red;
+                }
+
+                // 如果发生错误，确保定时器继续运行
+                if (isAutoPostAllEnabled && !dailyPostAllTimer.Enabled)
+                {
+                    dailyPostAllTimer.Start();
                 }
             }
         }
@@ -204,8 +312,7 @@ namespace WF_MUAI_34
             isAutoDeleteEnabled = true;
             dailyDeleteTimer.Start();
             UpdateStatusLabel();
-            UpdateTimerButtonText();
-            
+
             // 同步更新复选框状态（避免重复触发事件）
             checkBoxAutoDelete.CheckedChanged -= checkBoxAutoDelete_CheckedChanged;
             checkBoxAutoDelete.Checked = true;
@@ -220,12 +327,41 @@ namespace WF_MUAI_34
             isAutoDeleteEnabled = false;
             dailyDeleteTimer.Stop();
             UpdateStatusLabel();
-            UpdateTimerButtonText();
-            
+
             // 同步更新复选框状态（避免重复触发事件）
             checkBoxAutoDelete.CheckedChanged -= checkBoxAutoDelete_CheckedChanged;
             checkBoxAutoDelete.Checked = false;
             checkBoxAutoDelete.CheckedChanged += checkBoxAutoDelete_CheckedChanged;
+        }
+
+        /// <summary>
+        /// 启用自动上传全部定时任务
+        /// </summary>
+        public void EnableAutoPostAll()
+        {
+            isAutoPostAllEnabled = true;
+            dailyPostAllTimer.Start();
+            UpdatePostAllStatusLabel();
+
+            // 同步更新复选框状态（避免重复触发事件）
+            checkBoxAutoPostAll.CheckedChanged -= checkBoxAutoPostAll_CheckedChanged;
+            checkBoxAutoPostAll.Checked = true;
+            checkBoxAutoPostAll.CheckedChanged += checkBoxAutoPostAll_CheckedChanged;
+        }
+
+        /// <summary>
+        /// 禁用自动上传全部定时任务
+        /// </summary>
+        public void DisableAutoPostAll()
+        {
+            isAutoPostAllEnabled = false;
+            dailyPostAllTimer.Stop();
+            UpdatePostAllStatusLabel();
+
+            // 同步更新复选框状态（避免重复触发事件）
+            checkBoxAutoPostAll.CheckedChanged -= checkBoxAutoPostAll_CheckedChanged;
+            checkBoxAutoPostAll.Checked = false;
+            checkBoxAutoPostAll.CheckedChanged += checkBoxAutoPostAll_CheckedChanged;
         }
 
         /// <summary>
@@ -247,38 +383,35 @@ namespace WF_MUAI_34
         /// </summary>
         public TimeSpan DeleteTime => deleteTime;
 
+        /// <summary>
+        /// 设置上传全部时间
+        /// </summary>
+        /// <param name="time">上传全部时间</param>
+        public void SetPostAllTime(TimeSpan time)
+        {
+            postAllTime = time;
+        }
+
+        /// <summary>
+        /// 获取自动上传全部状态
+        /// </summary>
+        public bool IsAutoPostAllEnabled => isAutoPostAllEnabled;
+
+        /// <summary>
+        /// 获取上传全部时间
+        /// </summary>
+        public TimeSpan PostAllTime => postAllTime;
+
         // 窗体关闭时释放定时器资源
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             dailyDeleteTimer?.Stop();
             dailyDeleteTimer?.Dispose();
+            dailyPostAllTimer?.Stop();
+            dailyPostAllTimer?.Dispose();
             loginCheckTimer?.Stop();
             loginCheckTimer?.Dispose();
             base.OnFormClosed(e);
-        }
-
-        /// <summary>
-        /// 定时器控制按钮点击事件
-        /// </summary>
-        private void buttonToggleTimer_Click(object sender, EventArgs e)
-        {
-            if (isAutoDeleteEnabled)
-            {
-                // 当前已启用，点击后禁用
-                DisableAutoDelete();
-                MessageBox.Show("定时删除任务已关闭。", "定时任务", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            else
-            {
-                // 当前未启用，点击后启用
-                // 从DateTimePicker获取时间设置
-                deleteTime = dateTimePickerDeleteTime.Value.TimeOfDay;
-                EnableAutoDelete();
-                
-                string timeStr = deleteTime.ToString(@"hh\:mm");
-                MessageBox.Show($"定时删除任务已启动！\n每天 {timeStr} 自动删除所有MUAI_34政策。", 
-                    "定时任务", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
         }
 
         /// <summary>
@@ -291,9 +424,9 @@ namespace WF_MUAI_34
                 // 从DateTimePicker获取时间设置
                 deleteTime = dateTimePickerDeleteTime.Value.TimeOfDay;
                 EnableAutoDelete();
-                
+
                 string timeStr = deleteTime.ToString(@"hh\:mm");
-                MessageBox.Show($"定时删除已启用！\n每天 {timeStr} 自动删除所有MUAI_34政策。", 
+                MessageBox.Show($"定时删除已启用！\n每天 {timeStr} 自动删除所有MUAI_34政策。",
                     "定时任务", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
@@ -324,26 +457,25 @@ namespace WF_MUAI_34
         /// </summary>
         private async void toolStripMenuItemTestDelete_Click(object sender, EventArgs e)
         {
-            var result = MessageBox.Show("这将立即执行删除操作！\n确定要测试删除功能吗？", 
+            var result = MessageBox.Show("这将立即执行删除操作！\n确定要测试删除功能吗？",
                 "测试删除功能", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            
+
             if (result == DialogResult.Yes)
             {
                 try
                 {
                     // 禁用相关控件
                     buttonDelAllPolicy.Enabled = false;
-                    buttonToggleTimer.Enabled = false;
                     checkBoxAutoDelete.Enabled = false;
                     dateTimePickerDeleteTime.Enabled = false;
-                    
+
                     // 更新状态标签
                     labelDeleteStatus.Text = "状态：正在测试删除...";
                     labelDeleteStatus.ForeColor = Color.Orange;
-                    
+
                     // 执行删除操作
                     bool success = await DeleteAllPoliciesAsync();
-                    
+
                     // 更新状态标签
                     if (success)
                     {
@@ -355,7 +487,7 @@ namespace WF_MUAI_34
                         labelDeleteStatus.Text = "状态：测试删除失败";
                         labelDeleteStatus.ForeColor = Color.Red;
                     }
-                    
+
                     // 3秒后恢复正常状态显示
                     System.Windows.Forms.Timer statusTimer = new System.Windows.Forms.Timer();
                     statusTimer.Interval = 3000;
@@ -369,7 +501,7 @@ namespace WF_MUAI_34
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"测试删除功能时发生错误：{ex.Message}", "错误", 
+                    MessageBox.Show($"测试删除功能时发生错误：{ex.Message}", "错误",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                     UpdateStatusLabel();
                 }
@@ -377,7 +509,6 @@ namespace WF_MUAI_34
                 {
                     // 恢复控件状态
                     buttonDelAllPolicy.Enabled = true;
-                    buttonToggleTimer.Enabled = true;
                     checkBoxAutoDelete.Enabled = true;
                     dateTimePickerDeleteTime.Enabled = true;
                 }
@@ -400,17 +531,17 @@ namespace WF_MUAI_34
         {
             // 更新删除时间
             deleteTime = dateTimePickerDeleteTime.Value.TimeOfDay;
-            
+
             // 如果定时任务已启用，重新启动定时器并更新状态
             if (isAutoDeleteEnabled)
             {
                 dailyDeleteTimer.Stop();
                 dailyDeleteTimer.Start();
                 UpdateStatusLabel();
-                
+
                 string timeStr = deleteTime.ToString(@"hh\:mm");
                 this.Text = $"B3BForm - 定时删除时间已更新: {timeStr}";
-                
+
                 // 3秒后恢复原标题
                 System.Windows.Forms.Timer titleTimer = new System.Windows.Forms.Timer();
                 titleTimer.Interval = 3000;
@@ -1052,6 +1183,7 @@ namespace WF_MUAI_34
 
                 // 显示进度窗口
                 var progressForm = new ProgressForm(allEntities.Count);
+                // 进度窗口要有删除图标
                 progressForm.Show();
 
                 try
@@ -1248,13 +1380,12 @@ namespace WF_MUAI_34
                 // 禁用按钮防止重复点击
                 buttonDelAllPolicy.Enabled = false;
                 buttonDelAllPolicy.Text = "删除中...";
-                buttonToggleTimer.Enabled = false;
                 checkBoxAutoDelete.Enabled = false;
                 dateTimePickerDeleteTime.Enabled = false;
-                
+
                 // 执行删除操作
                 bool success = await DeleteAllPoliciesAsync();
-                
+
                 if (success)
                 {
                     MessageBox.Show("删除操作已完成！", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1269,7 +1400,6 @@ namespace WF_MUAI_34
                 // 恢复按钮状态
                 buttonDelAllPolicy.Enabled = true;
                 buttonDelAllPolicy.Text = "删除B3B政策";
-                buttonToggleTimer.Enabled = true;
                 checkBoxAutoDelete.Enabled = true;
                 dateTimePickerDeleteTime.Enabled = true;
             }
@@ -1283,7 +1413,7 @@ namespace WF_MUAI_34
             string status = isAutoDeleteEnabled ? "已启用" : "已禁用";
             string timeStr = deleteTime.ToString(@"hh\:mm");
             string nextDeleteTime = isAutoDeleteEnabled ? $"下次删除时间：每天{timeStr}" : "无";
-            
+
             DateTime now = DateTime.Now;
             string timeToNext = "";
             if (isAutoDeleteEnabled)
@@ -1296,8 +1426,8 @@ namespace WF_MUAI_34
                 TimeSpan timeSpan = nextDelete - now;
                 timeToNext = $"\n距离下次删除还有：{timeSpan.Days}天{timeSpan.Hours}小时{timeSpan.Minutes}分钟";
             }
-            
-            MessageBox.Show($"自动删除状态：{status}\n{nextDeleteTime}{timeToNext}", 
+
+            MessageBox.Show($"自动删除状态：{status}\n{nextDeleteTime}{timeToNext}",
                 "定时任务状态", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
@@ -1306,12 +1436,131 @@ namespace WF_MUAI_34
         /// </summary>
         private async void buttonManualDelete_Click(object sender, EventArgs e)
         {
-            var result = MessageBox.Show("确定要立即删除所有MUAI_34政策吗？", "手动删除确认", 
+            var result = MessageBox.Show("确定要立即删除所有MUAI_34政策吗？", "手动删除确认",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            
+
             if (result == DialogResult.Yes)
             {
                 await DeleteAllPoliciesAsync();
+            }
+        }
+
+        /// <summary>
+        /// 定时上传全部政策的主方法
+        /// </summary>
+        public async Task<bool> PostAllPoliciesScheduledAsync()
+        {
+            try
+            {
+                // 检查WebView2是否已初始化
+                if (webViewB3B.CoreWebView2 == null)
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        MessageBox.Show("WebView2 未初始化，无法获取Cookie。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }));
+                    return false;
+                }
+
+                // 检查是否有数据
+                if (dataGridView1.Rows.Count == 0 || dataGridView1.DataSource == null)
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        MessageBox.Show("没有数据可以上传。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }));
+                    return false;
+                }
+
+                // 获取Cookie
+                string cookieString = await GetCookieStringAsync();
+                if (string.IsNullOrEmpty(cookieString))
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        MessageBox.Show("无法获取网站Cookie，请确保已登录B3B网站。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }));
+                    return false;
+                }
+
+                // 获取所有数据行
+                var allEntities = GetAllRowData();
+                if (allEntities.Count == 0)
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        MessageBox.Show("无法读取数据行。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }));
+                    return false;
+                }
+
+                // 创建进度窗口
+                ProgressForm progressForm = null;
+                this.Invoke(new Action(() =>
+                {
+                    progressForm = new ProgressForm(allEntities.Count);
+                    progressForm.Show();
+                }));
+
+                bool success = false;
+                try
+                {
+                    // 使用多线程批量上传
+                    var batchResult = await BatchPostPoliciesAsync(allEntities, cookieString, progressForm);
+
+                    // 设置进度窗口为完成状态
+                    progressForm.Invoke(new Action(() =>
+                    {
+                        progressForm.SetCompleted();
+                    }));
+
+                    success = batchResult.FailureCount == 0;
+
+                    // 在UI线程中显示结果
+                    this.Invoke(new Action(() =>
+                    {
+                        string resultMessage = $"定时上传全部完成！\n\n" +
+                                             $"总数据条数：{allEntities.Count}\n" +
+                                             $"成功上传：{batchResult.SuccessCount}\n" +
+                                             $"上传失败：{batchResult.FailureCount}\n" +
+                                             $"处理时间：{batchResult.ElapsedTime.TotalSeconds:F1} 秒";
+
+                        if (batchResult.FailureCount > 0)
+                        {
+                            resultMessage += $"\n\n失败的数据行：\n{string.Join(", ", batchResult.FailedIndices)}";
+                        }
+
+                        System.Diagnostics.Debug.WriteLine($"定时上传结果: {resultMessage}");
+                        
+                        // 可选：显示详细结果消息框
+                        // MessageBox.Show(resultMessage, "定时上传结果", MessageBoxButtons.OK,
+                        //     batchResult.FailureCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                    }));
+                }
+                finally
+                {
+                    // 确保进度窗口一定会关闭
+                    if (progressForm != null)
+                    {
+                        progressForm.Invoke(new Action(() =>
+                        {
+                            if (!progressForm.IsDisposed)
+                            {
+                                progressForm.Close();
+                            }
+                        }));
+                    }
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                this.Invoke(new Action(() =>
+                {
+                    MessageBox.Show($"定时上传全部时发生错误：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+                return false;
             }
         }
 
@@ -1445,19 +1694,20 @@ namespace WF_MUAI_34
                         //把返回的内容显示在log控件
                         richTextBoxLog.AppendText($"查询政策ID响应状态: {responseContent}\n");
 
+                        // responseContent={"Record":[{"Operator":{"Team":null,"Role":{"Code":"Merchant","Value":"2","Des":"商户"},"Username":"18988486220"},"Id":508710,"ProductType":{"Code":"Customer","Value":"4","Des":"切位"},"Airline":"FM","Departures":["XMN"],"Arrivals":["SHA"],"FlightNoLimitType":{"Code":"Include","Value":"1","Des":"包含"},"LimitedFlightNos":"9260","FlightTimeLimitType":{"Code":"None","Value":"0","Des":"无"},"LimitedFlightTimeRanges":"","LimitedWeekdays":"1/2/3/4/6","Fare":"649","EnableAdjustPrice":true,"RequireReserveSeat":false,"AvCabinFlightType":{"Code":"FlightDate","Value":"1","Des":"FlightDate"},"AvCabinPriceType":{"Code":"Price","Value":"1","Des":"Price"},"Disabled":false,"Details":[{"FlightDays":{"Start":null,"End":null},"FlightDate":{"Start":"2025-07-08","End":"2025-07-09"},"AheadDays":1,"Cabins":[],"LowerPrice":"700","UpperPrice":"1200","ExtraOpenCabin":"G","Rebate":"3","Retention":"-100"}],"OfficeNo":"SHA009","ProductTypeCodes":"","ProductCode":"MUAI_34","UpdateTime":"2025-07-05 12:15:19"}],"Pagination": {"PageSize": 10,"PageIndex": 1,"RowCount": 286,"PageCount": 29,"GetRowCount": true}}
                         // 解析响应数据
                         var queryResult = JsonConvert.DeserializeObject<PolicyQueryResponse>(responseContent);
-                        if (queryResult?.Data?.Pagination != null && queryResult.Data.Pagination.RowCount > 0)
+                        if (queryResult?.Pagination != null && queryResult.Pagination.RowCount > 0)
                         {
                             var policyInfo = new PolicyQueryInfo
                             {
-                                TotalCount = queryResult.Data.Pagination.RowCount
+                                TotalCount = queryResult.Pagination.RowCount
                             };
 
                             // 如果有记录，从第一个记录获取最大ID
-                            if (queryResult.Data.Record != null && queryResult.Data.Record.Count > 0)
+                            if (queryResult.Record != null && queryResult.Record.Count > 0)
                             {
-                                policyInfo.MaxId = queryResult.Data.Record[0].Id;
+                                policyInfo.MaxId = queryResult.Record[0].Id;
                                 policyInfo.MinId = policyInfo.MaxId - policyInfo.TotalCount + 1;
 
                                 // 生成所有ID列表
@@ -1498,7 +1748,7 @@ namespace WF_MUAI_34
                 }
 
                 string deleteUrl = "https://fuwu.cddyf.net/Handlers/DomesticProductHandler.ashx/BatchDeleteDomesticAVCabins?domain=undefined&token=undefined";
-                
+
                 // 创建删除请求体
                 var deleteRequest = new { ids = ids };
                 string requestBody = JsonConvert.SerializeObject(deleteRequest);
@@ -1521,22 +1771,22 @@ namespace WF_MUAI_34
                     var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
                     System.Diagnostics.Debug.WriteLine($"批量删除请求: {deleteUrl}\n请求体: {requestBody}");
                     // 先测试到这一步，不真的去请求删除，测试获取ids是否成功
-                    return true;
+                    //return true;
 
-                    // 发送POST请求
-                    //var response = await httpClient.PostAsync(deleteUrl, content);
+                    //发送POST请求
+                    var response = await httpClient.PostAsync(deleteUrl, content);
 
-                    //if (response.IsSuccessStatusCode)
-                    //{
-                    //    var responseContent = await response.Content.ReadAsStringAsync();
-                    //    System.Diagnostics.Debug.WriteLine($"删除响应: {responseContent}");
-                    //    return true;
-                    //}
-                    //else
-                    //{
-                    //    System.Diagnostics.Debug.WriteLine($"删除失败: {response.StatusCode} - {response.ReasonPhrase}");
-                    //    return false;
-                    //}
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var responseContent = await response.Content.ReadAsStringAsync();
+                        System.Diagnostics.Debug.WriteLine($"删除响应: {responseContent}");
+                        return true;
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"删除失败: {response.StatusCode} - {response.ReasonPhrase}");
+                        return false;
+                    }
                 }
             }
             catch (Exception ex)
@@ -1548,13 +1798,9 @@ namespace WF_MUAI_34
 
         /// <summary>
         /// 政策查询响应数据结构
+        /// {"Record":[{"Operator":{"Team":null,"Role":{"Code":"Merchant","Value":"2","Des":"商户"},"Username":"18988486220"},"Id":508710,"ProductType":{"Code":"Customer","Value":"4","Des":"切位"},"Airline":"FM","Departures":["XMN"],"Arrivals":["SHA"],"FlightNoLimitType":{"Code":"Include","Value":"1","Des":"包含"},"LimitedFlightNos":"9260","FlightTimeLimitType":{"Code":"None","Value":"0","Des":"无"},"LimitedFlightTimeRanges":"","LimitedWeekdays":"1/2/3/4/6","Fare":"649","EnableAdjustPrice":true,"RequireReserveSeat":false,"AvCabinFlightType":{"Code":"FlightDate","Value":"1","Des":"FlightDate"},"AvCabinPriceType":{"Code":"Price","Value":"1","Des":"Price"},"Disabled":false,"Details":[{"FlightDays":{"Start":null,"End":null},"FlightDate":{"Start":"2025-07-08","End":"2025-07-09"},"AheadDays":1,"Cabins":[],"LowerPrice":"700","UpperPrice":"1200","ExtraOpenCabin":"G","Rebate":"3","Retention":"-100"}],"OfficeNo":"SHA009","ProductTypeCodes":"","ProductCode":"MUAI_34","UpdateTime":"2025-07-05 12:15:19"}],"Pagination": {"PageSize": 10,"PageIndex": 1,"RowCount": 286,"PageCount": 29,"GetRowCount": true}}
         /// </summary>
         public class PolicyQueryResponse
-        {
-            public PolicyQueryData Data { get; set; } = null!;
-        }
-
-        public class PolicyQueryData
         {
             public List<PolicyRecord> Record { get; set; } = null!;
             public PolicyPagination Pagination { get; set; } = null!;
@@ -1581,25 +1827,25 @@ namespace WF_MUAI_34
         {
             [JsonProperty("userNameInput")]
             public bool UserNameInput { get; set; }
-            
+
             [JsonProperty("passwordInput")]
             public bool PasswordInput { get; set; }
-            
+
             [JsonProperty("codeInput")]
             public bool CodeInput { get; set; }
-            
+
             [JsonProperty("checkboxInput")]
             public bool CheckboxInput { get; set; }
-            
+
             [JsonProperty("loginButton")]
             public bool LoginButton { get; set; }
-            
+
             [JsonProperty("url")]
             public string Url { get; set; } = string.Empty;
-            
+
             [JsonProperty("title")]
             public string Title { get; set; } = string.Empty;
-            
+
             [JsonProperty("readyState")]
             public string ReadyState { get; set; } = string.Empty;
         }
@@ -1611,34 +1857,34 @@ namespace WF_MUAI_34
         {
             [JsonProperty("url")]
             public string Url { get; set; } = string.Empty;
-            
+
             [JsonProperty("title")]
             public string Title { get; set; } = string.Empty;
-            
+
             [JsonProperty("userNameExists")]
             public bool UserNameExists { get; set; }
-            
+
             [JsonProperty("passwordExists")]
             public bool PasswordExists { get; set; }
-            
+
             [JsonProperty("codeExists")]
             public bool CodeExists { get; set; }
-            
+
             [JsonProperty("checkboxExists")]
             public bool CheckboxExists { get; set; }
-            
+
             [JsonProperty("loginBtnExists")]
             public bool LoginBtnExists { get; set; }
-            
+
             [JsonProperty("readyState")]
             public string ReadyState { get; set; } = string.Empty;
-            
+
             [JsonProperty("bodyExists")]
             public bool BodyExists { get; set; }
-            
+
             [JsonProperty("formExists")]
             public bool FormExists { get; set; }
-            
+
             [JsonProperty("allInputs")]
             public List<InputInfo>? AllInputs { get; set; }
         }
@@ -1650,10 +1896,10 @@ namespace WF_MUAI_34
         {
             [JsonProperty("id")]
             public string Id { get; set; } = string.Empty;
-            
+
             [JsonProperty("name")]
             public string Name { get; set; } = string.Empty;
-            
+
             [JsonProperty("type")]
             public string Type { get; set; } = string.Empty;
         }
@@ -1665,22 +1911,22 @@ namespace WF_MUAI_34
         {
             [JsonProperty("success")]
             public bool Success { get; set; }
-            
+
             [JsonProperty("actualValue")]
             public string ActualValue { get; set; } = string.Empty;
-            
+
             [JsonProperty("expectedValue")]
             public string ExpectedValue { get; set; } = string.Empty;
-            
+
             [JsonProperty("elementType")]
             public string ElementType { get; set; } = string.Empty;
-            
+
             [JsonProperty("elementName")]
             public string ElementName { get; set; } = string.Empty;
-            
+
             [JsonProperty("error")]
             public string Error { get; set; } = string.Empty;
-            
+
             [JsonProperty("message")]
             public string Message { get; set; } = string.Empty;
         }
@@ -1692,19 +1938,19 @@ namespace WF_MUAI_34
         {
             [JsonProperty("success")]
             public bool Success { get; set; }
-            
+
             [JsonProperty("wasChecked")]
             public bool WasChecked { get; set; }
-            
+
             [JsonProperty("isChecked")]
             public bool IsChecked { get; set; }
-            
+
             [JsonProperty("action")]
             public string Action { get; set; } = string.Empty;
-            
+
             [JsonProperty("error")]
             public string Error { get; set; } = string.Empty;
-            
+
             [JsonProperty("message")]
             public string Message { get; set; } = string.Empty;
         }
@@ -1759,18 +2005,18 @@ namespace WF_MUAI_34
 
                 string currentUrl = webViewB3B.CoreWebView2.Source;
                 System.Diagnostics.Debug.WriteLine($"🔍 当前URL: {currentUrl}");
-                
+
                 // 检查是否在登录页面 - 更精确的匹配
                 if (currentUrl.Contains("Login.aspx") || currentUrl.Contains("oper.cddyf.net/Login"))
                 {
                     System.Diagnostics.Debug.WriteLine("✅ 检测到登录页面，开始自动登录...");
-                    
+
                     // 暂停定时器，避免重复触发
                     loginCheckTimer.Stop();
-                    
+
                     // 等待页面完全加载
                     await Task.Delay(3000);
-                    
+
                     // 执行自动登录
                     await PerformAutoLoginAsync();
                 }
@@ -1823,7 +2069,7 @@ namespace WF_MUAI_34
                     this.Invoke(new Action(() =>
                     {
                         this.Text = "B3BForm - 登录表单未找到";
-                        MessageBox.Show("无法找到登录表单元素，请检查页面是否已完全加载。", "登录表单未找到", 
+                        MessageBox.Show("无法找到登录表单元素，请检查页面是否已完全加载。", "登录表单未找到",
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }));
                     return;
@@ -1845,27 +2091,27 @@ namespace WF_MUAI_34
 
                 // 等待一下确保所有操作完成
                 await Task.Delay(1000);
-                
+
                 // 验证填写结果
                 var verifyResult = await VerifyAutoFillResultAsync();
-                
+
                 // 暂时跳过验证码识别，只完成基本填写
                 this.Invoke(new Action(() =>
                 {
                     this.Text = "B3BForm - 已填写用户名和密码，请手动输入验证码";
-                    
+
                     string statusMessage = "✅ 自动填写完成！\n\n已处理的项目:\n";
                     statusMessage += $"• 用户名: {(verifyResult.UsernameOk ? "✅" : "❌")} 18988486220\n";
                     statusMessage += $"• 密码: {(verifyResult.PasswordOk ? "✅" : "❌")} ********\n";
                     statusMessage += $"• 记住密码: {(verifyResult.CheckboxOk ? "✅" : "❌")} 已勾选\n\n";
                     statusMessage += "📝 下一步: 请手动输入验证码后点击登录按钮。";
-                    
+
                     MessageBox.Show(statusMessage, "自动填写状态", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }));
 
                 // 停止定时器，避免重复触发
                 loginCheckTimer.Stop();
-                
+
                 System.Diagnostics.Debug.WriteLine("✅ 自动填写完成");
             }
             catch (Exception ex)
@@ -1874,7 +2120,7 @@ namespace WF_MUAI_34
                 this.Invoke(new Action(() =>
                 {
                     this.Text = "B3BForm - 自动登录失败";
-                    MessageBox.Show($"自动登录过程中发生错误:\n{ex.Message}\n\n请尝试手动填写登录信息。", "自动登录错误", 
+                    MessageBox.Show($"自动登录过程中发生错误:\n{ex.Message}\n\n请尝试手动填写登录信息。", "自动登录错误",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }));
             }
@@ -1906,13 +2152,13 @@ namespace WF_MUAI_34
                 var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
                 string jsonResult = result.Trim('"').Replace("\\\"", "\"");
                 System.Diagnostics.Debug.WriteLine($"登录表单检查详情: {jsonResult}");
-                
+
                 // 解析JSON结果 - 修复类型转换问题
                 var formCheck = JsonConvert.DeserializeObject<FormCheckResult>(jsonResult);
                 bool allElementsExist = formCheck.UserNameInput && formCheck.PasswordInput && formCheck.CodeInput;
-                
+
                 System.Diagnostics.Debug.WriteLine($"表单元素检查结果: 用户名={formCheck.UserNameInput}, 密码={formCheck.PasswordInput}, 验证码={formCheck.CodeInput}, 复选框={formCheck.CheckboxInput}, 登录按钮={formCheck.LoginButton}");
-                
+
                 return allElementsExist;
             }
             catch (Exception ex)
@@ -1930,7 +2176,10 @@ namespace WF_MUAI_34
             try
             {
                 System.Diagnostics.Debug.WriteLine($"🖊️ 开始填写 {fieldId} = {value}");
-                
+
+                // 直接用webview的方法进行页面元素的查找和填写
+                //webViewB3B.
+
                 // 使用更兼容的JavaScript方法
                 string script = $@"
                     (function() {{
@@ -1984,9 +2233,9 @@ namespace WF_MUAI_34
                 var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
                 string jsonResult = result.Trim('"').Replace("\\\"", "\"");
                 System.Diagnostics.Debug.WriteLine($"📝 填写 {fieldId} 详细结果: {jsonResult}");
-                
+
                 var fillResult = JsonConvert.DeserializeObject<FillResult>(jsonResult);
-                
+
                 if (fillResult.Success)
                 {
                     System.Diagnostics.Debug.WriteLine($"✅ 成功填写 {fieldId}: {fillResult.ActualValue}");
@@ -2010,7 +2259,7 @@ namespace WF_MUAI_34
             try
             {
                 System.Diagnostics.Debug.WriteLine("☑️ 开始勾选记住密码");
-                
+
                 string script = @"
                     (function() {
                         try {
@@ -2055,9 +2304,9 @@ namespace WF_MUAI_34
                 var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
                 string jsonResult = result.Trim('"').Replace("\\\"", "\"");
                 System.Diagnostics.Debug.WriteLine($"📋 勾选记住密码详细结果: {jsonResult}");
-                
+
                 var checkResult = JsonConvert.DeserializeObject<CheckboxResult>(jsonResult);
-                
+
                 if (checkResult.Success)
                 {
                     if (checkResult.Action == "already_checked")
@@ -2096,7 +2345,7 @@ namespace WF_MUAI_34
 
                 // 使用简单的OCR识别（您可以替换为阿里云百炼API）
                 string captchaText = await RecognizeCaptchaAsync(captchaBase64);
-                
+
                 System.Diagnostics.Debug.WriteLine($"验证码识别结果: {captchaText}");
                 return captchaText;
             }
@@ -2131,12 +2380,12 @@ namespace WF_MUAI_34
 
                 var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
                 string base64Data = result.Trim('"');
-                
+
                 if (base64Data.StartsWith("data:image/png;base64,"))
                 {
                     return base64Data.Substring("data:image/png;base64,".Length);
                 }
-                
+
                 return string.Empty;
             }
             catch (Exception ex)
@@ -2155,14 +2404,14 @@ namespace WF_MUAI_34
             {
                 // 这里是简单的本地OCR实现
                 // 您可以替换为调用阿里云百炼API
-                
+
                 // 将Base64转换为图像
                 byte[] imageBytes = Convert.FromBase64String(base64Image);
-                
+
                 // 保存临时图片文件用于调试
                 string tempPath = Path.Combine(Path.GetTempPath(), "captcha_temp.png");
                 await File.WriteAllBytesAsync(tempPath, imageBytes);
-                
+
                 // 这里返回一个示例结果，您需要替换为实际的OCR调用
                 // 可以调用阿里云百炼API或其他OCR服务
                 return await CallAliCloudOCRAsync(base64Image);
@@ -2187,13 +2436,13 @@ namespace WF_MUAI_34
                     // 如果未配置API Key或禁用了阿里云OCR，使用备选方案
                     return await SimpleNumberRecognitionAsync(base64Image);
                 }
-                
+
                 using (var httpClient = new HttpClient())
                 {
                     // 设置请求头
                     httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {Config.Instance.AliCloudApiKey}");
                     httpClient.DefaultRequestHeaders.Add("X-DashScope-Async", "enable");
-                    
+
                     // 构建请求体
                     var requestBody = new
                     {
@@ -2224,16 +2473,16 @@ namespace WF_MUAI_34
                             result_format = "message"
                         }
                     };
-                    
+
                     string jsonBody = JsonConvert.SerializeObject(requestBody);
                     var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-                    
+
                     var response = await httpClient.PostAsync(Config.Instance.AliCloudApiUrl, content);
                     if (response.IsSuccessStatusCode)
                     {
                         var responseContent = await response.Content.ReadAsStringAsync();
                         var result = JsonConvert.DeserializeObject<dynamic>(responseContent);
-                        
+
                         // 解析返回结果
                         if (result?.output?.choices != null && result.output.choices.Count > 0)
                         {
@@ -2244,7 +2493,7 @@ namespace WF_MUAI_34
                         }
                     }
                 }
-                
+
                 // 如果API调用失败，使用备选方案
                 return await SimpleNumberRecognitionAsync(base64Image);
             }
@@ -2262,14 +2511,14 @@ namespace WF_MUAI_34
         private async Task<string> SimpleNumberRecognitionAsync(string base64Image)
         {
             await Task.Delay(100); // 模拟处理时间
-            
+
             try
             {
                 // 保存图片到临时文件供用户查看
                 byte[] imageBytes = Convert.FromBase64String(base64Image);
                 string tempPath = Path.Combine(Path.GetTempPath(), "captcha_for_manual_input.png");
                 await File.WriteAllBytesAsync(tempPath, imageBytes);
-                
+
                 // 在UI线程中显示对话框让用户手动输入
                 string userInput = string.Empty;
                 this.Invoke(new Action(() =>
@@ -2280,7 +2529,7 @@ namespace WF_MUAI_34
                         userInput = inputForm.CaptchaText;
                     }
                 }));
-                
+
                 return userInput;
             }
             catch (Exception ex)
@@ -2401,7 +2650,7 @@ namespace WF_MUAI_34
                 var result = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
                 string jsonResult = result.Trim('"').Replace("\\\"", "\"");
                 System.Diagnostics.Debug.WriteLine($"页面元素检查结果: {jsonResult}");
-                
+
                 // 解析结果并格式化显示 - 修复类型转换问题
                 var pageInfo = JsonConvert.DeserializeObject<PageTestResult>(jsonResult);
                 string formattedResult = $"页面信息:\n" +
@@ -2415,11 +2664,11 @@ namespace WF_MUAI_34
                     $"✓ 记住密码复选框: {(pageInfo.CheckboxExists ? "存在" : "不存在")}\n" +
                     $"✓ 登录按钮: {(pageInfo.LoginBtnExists ? "存在" : "不存在")}\n\n" +
                     $"页面中所有输入框数量: {pageInfo.AllInputs?.Count ?? 0}";
-                
+
                 // 显示结果给用户
                 this.Invoke(new Action(() =>
                 {
-                    MessageBox.Show(formattedResult, "页面元素检查结果", 
+                    MessageBox.Show(formattedResult, "页面元素检查结果",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }));
             }
@@ -2428,7 +2677,7 @@ namespace WF_MUAI_34
                 System.Diagnostics.Debug.WriteLine($"检查页面元素失败: {ex.Message}");
                 this.Invoke(new Action(() =>
                 {
-                    MessageBox.Show($"检查页面元素时发生错误:\n{ex.Message}", "检查失败", 
+                    MessageBox.Show($"检查页面元素时发生错误:\n{ex.Message}", "检查失败",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }));
             }
@@ -2440,11 +2689,11 @@ namespace WF_MUAI_34
         private async Task<AutoFillVerifyResult> VerifyAutoFillResultAsync()
         {
             var result = new AutoFillVerifyResult();
-            
+
             try
             {
                 System.Diagnostics.Debug.WriteLine("🔍 开始验证自动填写结果...");
-                
+
                 string script = @"
                     (function() {
                         try {
@@ -2471,25 +2720,25 @@ namespace WF_MUAI_34
                 var jsResult = await webViewB3B.CoreWebView2.ExecuteScriptAsync(script);
                 string jsonResult = jsResult.Trim('"').Replace("\\\"", "\"");
                 System.Diagnostics.Debug.WriteLine($"🔍 验证结果: {jsonResult}");
-                
+
                 var verifyData = JsonConvert.DeserializeObject<dynamic>(jsonResult);
-                
+
                 result.UsernameValue = verifyData.usernameValue?.ToString() ?? "";
                 result.PasswordValue = verifyData.passwordValue?.ToString() ?? "";
                 result.CheckboxChecked = verifyData.checkboxChecked ?? false;
-                
+
                 // 检查是否符合预期
                 result.UsernameOk = result.UsernameValue == Config.Instance.LoginUsername;
                 result.PasswordOk = result.PasswordValue == Config.Instance.LoginPassword;
                 result.CheckboxOk = result.CheckboxChecked;
-                
+
                 System.Diagnostics.Debug.WriteLine($"✅ 验证完成: 用户名={result.UsernameOk}, 密码={result.PasswordOk}, 复选框={result.CheckboxOk}");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ 验证自动填写结果异常: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -2501,10 +2750,10 @@ namespace WF_MUAI_34
             try
             {
                 System.Diagnostics.Debug.WriteLine("🧪 开始手动测试自动登录功能...");
-                
+
                 if (webViewB3B.CoreWebView2 == null)
                 {
-                    MessageBox.Show("WebView2 未初始化，请先打开B3B网站。", "测试失败", 
+                    MessageBox.Show("WebView2 未初始化，请先打开B3B网站。", "测试失败",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
@@ -2514,7 +2763,7 @@ namespace WF_MUAI_34
 
                 if (!currentUrl.Contains("Login.aspx") && !currentUrl.Contains("oper.cddyf.net/Login"))
                 {
-                    var result = MessageBox.Show($"当前页面不是登录页面:\n{currentUrl}\n\n是否继续测试？", 
+                    var result = MessageBox.Show($"当前页面不是登录页面:\n{currentUrl}\n\n是否继续测试？",
                         "页面确认", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                     if (result != DialogResult.Yes)
                     {
@@ -2528,8 +2777,83 @@ namespace WF_MUAI_34
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ 手动测试失败: {ex.Message}");
-                MessageBox.Show($"手动测试自动登录时发生错误:\n{ex.Message}", "测试错误", 
+                MessageBox.Show($"手动测试自动登录时发生错误:\n{ex.Message}", "测试错误",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void buttonAutoLogin_Click(object sender, EventArgs e)
+        {
+            // 手动测试自动登录，自动填写webview2中的页面的元素
+            try
+            {
+                //直接操作webviewB3B中的页面的Dom，实现自动填写
+                System.Diagnostics.Debug.WriteLine("手动触发自动登录按钮点击事件");
+                if (webViewB3B.CoreWebView2 != null)
+                {
+                    // 停止定时器，避免重复触发
+                    loginCheckTimer?.Stop();
+                    // 执行自动登录
+                    PerformAutoLoginAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("WebView2 未初始化，无法触发自动登录");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"手动触发自动登录失败: {ex.Message}");
+            }
+        }
+
+        private void checkBoxAutoPostAll_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBoxAutoPostAll.Checked)
+            {
+                // 从DateTimePicker获取时间设置
+                postAllTime = dateTimePickerPostAllTime.Value.TimeOfDay;
+                EnableAutoPostAll();
+
+                string timeStr = postAllTime.ToString(@"hh\:mm");
+                MessageBox.Show($"定时上传全部已启用！\n每天 {timeStr} 自动上传所有MUAI_34政策。",
+                    "定时任务", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                DisableAutoPostAll();
+                MessageBox.Show("定时上传全部已禁用。", "定时任务", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>
+        /// 上传全部时间设置改变事件
+        /// </summary>
+        private void dateTimePickerPostAllTime_ValueChanged(object sender, EventArgs e)
+        {
+            // 更新上传全部时间
+            postAllTime = dateTimePickerPostAllTime.Value.TimeOfDay;
+
+            // 如果定时任务已启用，重新启动定时器并更新状态
+            if (isAutoPostAllEnabled)
+            {
+                dailyPostAllTimer.Stop();
+                dailyPostAllTimer.Start();
+                UpdatePostAllStatusLabel();
+
+                string timeStr = postAllTime.ToString(@"hh\:mm");
+                this.Text = $"B3BForm - 定时上传全部时间已更新: {timeStr}";
+
+                // 3秒后恢复原标题
+                System.Windows.Forms.Timer titleTimer = new System.Windows.Forms.Timer();
+                titleTimer.Interval = 3000;
+                titleTimer.Tick += (s, args) =>
+                {
+                    this.Text = "B3BForm";
+                    titleTimer.Stop();
+                    titleTimer.Dispose();
+                };
+                titleTimer.Start();
             }
         }
     }

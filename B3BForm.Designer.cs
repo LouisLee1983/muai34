@@ -30,6 +30,8 @@
         {
             components = new System.ComponentModel.Container();
             splitContainer1 = new SplitContainer();
+            richTextBoxLog = new RichTextBox();
+            label1 = new Label();
             textBoxUpperPriceAdd = new TextBox();
             textBoxAddLowerPrice = new TextBox();
             checkBoxUsePrice = new CheckBox();
@@ -40,22 +42,23 @@
             buttonCloseB3B = new Button();
             buttonSaveSession = new Button();
             buttonOpenB3B = new Button();
-            label1 = new Label();
-            buttonDelAllPolicy = new Button();
             tabControl1 = new TabControl();
             tabPageB3B = new TabPage();
-            tabPage2 = new TabPage();
-            webViewB3B = new Microsoft.Web.WebView2.WinForms.WebView2();
-            richTextBoxLog = new RichTextBox();
-            dateTimePickerDeleteTime = new DateTimePicker();
-            checkBoxAutoDelete = new CheckBox();
+            dateTimePickerPostAllTime = new DateTimePicker();
+            checkBoxAutoPostAll = new CheckBox();
+            buttonAutoLogin = new Button();
             labelDeleteStatus = new Label();
             contextMenuStripStatus = new ContextMenuStrip(components);
             toolStripMenuItemShowStatus = new ToolStripMenuItem();
             toolStripMenuItemTestDelete = new ToolStripMenuItem();
             toolStripMenuItemResetStatus = new ToolStripMenuItem();
-            buttonToggleTimer = new Button();
+            dateTimePickerDeleteTime = new DateTimePicker();
+            checkBoxAutoDelete = new CheckBox();
+            buttonDelAllPolicy = new Button();
+            webViewB3B = new Microsoft.Web.WebView2.WinForms.WebView2();
+            tabPage2 = new TabPage();
             toolTip1 = new ToolTip(components);
+            labelPostAllStatus = new Label();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
@@ -63,8 +66,8 @@
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             tabControl1.SuspendLayout();
             tabPageB3B.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)webViewB3B).BeginInit();
             contextMenuStripStatus.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)webViewB3B).BeginInit();
             SuspendLayout();
             // 
             // splitContainer1
@@ -94,6 +97,23 @@
             splitContainer1.Size = new Size(1344, 801);
             splitContainer1.SplitterDistance = 295;
             splitContainer1.TabIndex = 0;
+            // 
+            // richTextBoxLog
+            // 
+            richTextBoxLog.Location = new Point(4, 472);
+            richTextBoxLog.Name = "richTextBoxLog";
+            richTextBoxLog.Size = new Size(288, 322);
+            richTextBoxLog.TabIndex = 11;
+            richTextBoxLog.Text = "";
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(137, 33);
+            label1.Name = "label1";
+            label1.Size = new Size(13, 17);
+            label1.TabIndex = 10;
+            label1.Text = "-";
             // 
             // textBoxUpperPriceAdd
             // 
@@ -191,25 +211,6 @@
             buttonOpenB3B.UseVisualStyleBackColor = true;
             buttonOpenB3B.Click += buttonOpenB3B_Click;
             // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new Point(137, 33);
-            label1.Name = "label1";
-            label1.Size = new Size(13, 17);
-            label1.TabIndex = 10;
-            label1.Text = "-";
-            // 
-            // buttonDelAllPolicy
-            // 
-            buttonDelAllPolicy.Location = new Point(6, 5);
-            buttonDelAllPolicy.Name = "buttonDelAllPolicy";
-            buttonDelAllPolicy.Size = new Size(87, 23);
-            buttonDelAllPolicy.TabIndex = 11;
-            buttonDelAllPolicy.Text = "删除B3B政策";
-            buttonDelAllPolicy.UseVisualStyleBackColor = true;
-            buttonDelAllPolicy.Click += buttonDelAllPolicy_Click;
-            // 
             // tabControl1
             // 
             tabControl1.Controls.Add(tabPageB3B);
@@ -222,7 +223,10 @@
             // 
             // tabPageB3B
             // 
-            tabPageB3B.Controls.Add(buttonToggleTimer);
+            tabPageB3B.Controls.Add(labelPostAllStatus);
+            tabPageB3B.Controls.Add(dateTimePickerPostAllTime);
+            tabPageB3B.Controls.Add(checkBoxAutoPostAll);
+            tabPageB3B.Controls.Add(buttonAutoLogin);
             tabPageB3B.Controls.Add(labelDeleteStatus);
             tabPageB3B.Controls.Add(dateTimePickerDeleteTime);
             tabPageB3B.Controls.Add(checkBoxAutoDelete);
@@ -236,16 +240,37 @@
             tabPageB3B.Text = "B3B";
             tabPageB3B.UseVisualStyleBackColor = true;
             // 
-            // buttonToggleTimer
+            // dateTimePickerPostAllTime
             // 
-            buttonToggleTimer.Location = new Point(350, 5);
-            buttonToggleTimer.Name = "buttonToggleTimer";
-            buttonToggleTimer.Size = new Size(80, 23);
-            buttonToggleTimer.TabIndex = 15;
-            buttonToggleTimer.Text = "启动定时";
-            toolTip1.SetToolTip(buttonToggleTimer, "点击启动或关闭定时删除任务");
-            buttonToggleTimer.UseVisualStyleBackColor = true;
-            buttonToggleTimer.Click += buttonToggleTimer_Click;
+            dateTimePickerPostAllTime.Format = DateTimePickerFormat.Time;
+            dateTimePickerPostAllTime.Location = new Point(516, 5);
+            dateTimePickerPostAllTime.Name = "dateTimePickerPostAllTime";
+            dateTimePickerPostAllTime.ShowUpDown = true;
+            dateTimePickerPostAllTime.Size = new Size(80, 23);
+            dateTimePickerPostAllTime.TabIndex = 18;
+            toolTip1.SetToolTip(dateTimePickerPostAllTime, "设置每天执行删除的时间");
+            dateTimePickerPostAllTime.Value = new DateTime(2024, 1, 1, 1, 0, 0, 0);
+            // 
+            // checkBoxAutoPostAll
+            // 
+            checkBoxAutoPostAll.AutoSize = true;
+            checkBoxAutoPostAll.Location = new Point(435, 7);
+            checkBoxAutoPostAll.Name = "checkBoxAutoPostAll";
+            checkBoxAutoPostAll.Size = new Size(75, 21);
+            checkBoxAutoPostAll.TabIndex = 17;
+            checkBoxAutoPostAll.Text = "定时上传";
+            checkBoxAutoPostAll.UseVisualStyleBackColor = true;
+            checkBoxAutoPostAll.CheckedChanged += checkBoxAutoPostAll_CheckedChanged;
+            // 
+            // buttonAutoLogin
+            // 
+            buttonAutoLogin.Location = new Point(950, 5);
+            buttonAutoLogin.Name = "buttonAutoLogin";
+            buttonAutoLogin.Size = new Size(75, 23);
+            buttonAutoLogin.TabIndex = 16;
+            buttonAutoLogin.Text = "登录";
+            buttonAutoLogin.UseVisualStyleBackColor = true;
+            buttonAutoLogin.Click += buttonAutoLogin_Click;
             // 
             // labelDeleteStatus
             // 
@@ -254,40 +279,38 @@
             labelDeleteStatus.ForeColor = Color.Gray;
             labelDeleteStatus.Location = new Point(266, 9);
             labelDeleteStatus.Name = "labelDeleteStatus";
-            labelDeleteStatus.Size = new Size(56, 17);
+            labelDeleteStatus.Size = new Size(80, 17);
             labelDeleteStatus.TabIndex = 14;
             labelDeleteStatus.Text = "状态：未启用";
             toolTip1.SetToolTip(labelDeleteStatus, "双击查看详细状态，右键打开菜单");
             labelDeleteStatus.DoubleClick += labelDeleteStatus_DoubleClick;
             // 
-            // tabPage2
+            // contextMenuStripStatus
             // 
-            tabPage2.Location = new Point(4, 26);
-            tabPage2.Name = "tabPage2";
-            tabPage2.Padding = new Padding(3);
-            tabPage2.Size = new Size(192, 70);
-            tabPage2.TabIndex = 1;
-            tabPage2.Text = "tabPage2";
-            tabPage2.UseVisualStyleBackColor = true;
+            contextMenuStripStatus.Items.AddRange(new ToolStripItem[] { toolStripMenuItemShowStatus, toolStripMenuItemTestDelete, toolStripMenuItemResetStatus });
+            contextMenuStripStatus.Name = "contextMenuStripStatus";
+            contextMenuStripStatus.Size = new Size(149, 70);
             // 
-            // webViewB3B
+            // toolStripMenuItemShowStatus
             // 
-            webViewB3B.AllowExternalDrop = true;
-            webViewB3B.CreationProperties = null;
-            webViewB3B.DefaultBackgroundColor = Color.White;
-            webViewB3B.Location = new Point(3, 31);
-            webViewB3B.Name = "webViewB3B";
-            webViewB3B.Size = new Size(1022, 728);
-            webViewB3B.TabIndex = 0;
-            webViewB3B.ZoomFactor = 1D;
+            toolStripMenuItemShowStatus.Name = "toolStripMenuItemShowStatus";
+            toolStripMenuItemShowStatus.Size = new Size(148, 22);
+            toolStripMenuItemShowStatus.Text = "显示详细状态";
+            toolStripMenuItemShowStatus.Click += toolStripMenuItemShowStatus_Click;
             // 
-            // richTextBoxLog
+            // toolStripMenuItemTestDelete
             // 
-            richTextBoxLog.Location = new Point(4, 472);
-            richTextBoxLog.Name = "richTextBoxLog";
-            richTextBoxLog.Size = new Size(288, 322);
-            richTextBoxLog.TabIndex = 11;
-            richTextBoxLog.Text = "";
+            toolStripMenuItemTestDelete.Name = "toolStripMenuItemTestDelete";
+            toolStripMenuItemTestDelete.Size = new Size(148, 22);
+            toolStripMenuItemTestDelete.Text = "测试删除功能";
+            toolStripMenuItemTestDelete.Click += toolStripMenuItemTestDelete_Click;
+            // 
+            // toolStripMenuItemResetStatus
+            // 
+            toolStripMenuItemResetStatus.Name = "toolStripMenuItemResetStatus";
+            toolStripMenuItemResetStatus.Size = new Size(148, 22);
+            toolStripMenuItemResetStatus.Text = "重置状态";
+            toolStripMenuItemResetStatus.Click += toolStripMenuItemResetStatus_Click;
             // 
             // dateTimePickerDeleteTime
             // 
@@ -298,7 +321,7 @@
             dateTimePickerDeleteTime.Size = new Size(80, 23);
             dateTimePickerDeleteTime.TabIndex = 13;
             toolTip1.SetToolTip(dateTimePickerDeleteTime, "设置每天执行删除的时间");
-            dateTimePickerDeleteTime.Value = new DateTime(2024, 1, 1, 23, 58, 0);
+            dateTimePickerDeleteTime.Value = new DateTime(2024, 1, 1, 23, 58, 0, 0);
             dateTimePickerDeleteTime.ValueChanged += dateTimePickerDeleteTime_ValueChanged;
             // 
             // checkBoxAutoDelete
@@ -313,32 +336,48 @@
             checkBoxAutoDelete.UseVisualStyleBackColor = true;
             checkBoxAutoDelete.CheckedChanged += checkBoxAutoDelete_CheckedChanged;
             // 
-            // contextMenuStripStatus
+            // buttonDelAllPolicy
             // 
-            contextMenuStripStatus.Items.AddRange(new ToolStripItem[] { toolStripMenuItemShowStatus, toolStripMenuItemTestDelete, toolStripMenuItemResetStatus });
-            contextMenuStripStatus.Name = "contextMenuStripStatus";
-            contextMenuStripStatus.Size = new Size(139, 70);
+            buttonDelAllPolicy.Location = new Point(6, 5);
+            buttonDelAllPolicy.Name = "buttonDelAllPolicy";
+            buttonDelAllPolicy.Size = new Size(87, 23);
+            buttonDelAllPolicy.TabIndex = 11;
+            buttonDelAllPolicy.Text = "删除B3B政策";
+            buttonDelAllPolicy.UseVisualStyleBackColor = true;
+            buttonDelAllPolicy.Click += buttonDelAllPolicy_Click;
             // 
-            // toolStripMenuItemShowStatus
+            // webViewB3B
             // 
-            toolStripMenuItemShowStatus.Name = "toolStripMenuItemShowStatus";
-            toolStripMenuItemShowStatus.Size = new Size(138, 22);
-            toolStripMenuItemShowStatus.Text = "显示详细状态";
-            toolStripMenuItemShowStatus.Click += toolStripMenuItemShowStatus_Click;
+            webViewB3B.AllowExternalDrop = true;
+            webViewB3B.CreationProperties = null;
+            webViewB3B.DefaultBackgroundColor = Color.White;
+            webViewB3B.Location = new Point(3, 31);
+            webViewB3B.Name = "webViewB3B";
+            webViewB3B.Size = new Size(1022, 728);
+            webViewB3B.TabIndex = 0;
+            webViewB3B.ZoomFactor = 1D;
             // 
-            // toolStripMenuItemTestDelete
+            // tabPage2
             // 
-            toolStripMenuItemTestDelete.Name = "toolStripMenuItemTestDelete";
-            toolStripMenuItemTestDelete.Size = new Size(138, 22);
-            toolStripMenuItemTestDelete.Text = "测试删除功能";
-            toolStripMenuItemTestDelete.Click += toolStripMenuItemTestDelete_Click;
+            tabPage2.Location = new Point(4, 26);
+            tabPage2.Name = "tabPage2";
+            tabPage2.Padding = new Padding(3);
+            tabPage2.Size = new Size(1031, 765);
+            tabPage2.TabIndex = 1;
+            tabPage2.Text = "tabPage2";
+            tabPage2.UseVisualStyleBackColor = true;
             // 
-            // toolStripMenuItemResetStatus
+            // labelPostAllStatus
             // 
-            toolStripMenuItemResetStatus.Name = "toolStripMenuItemResetStatus";
-            toolStripMenuItemResetStatus.Size = new Size(138, 22);
-            toolStripMenuItemResetStatus.Text = "重置状态";
-            toolStripMenuItemResetStatus.Click += toolStripMenuItemResetStatus_Click;
+            labelPostAllStatus.AutoSize = true;
+            labelPostAllStatus.ContextMenuStrip = contextMenuStripStatus;
+            labelPostAllStatus.ForeColor = Color.Gray;
+            labelPostAllStatus.Location = new Point(602, 10);
+            labelPostAllStatus.Name = "labelPostAllStatus";
+            labelPostAllStatus.Size = new Size(80, 17);
+            labelPostAllStatus.TabIndex = 19;
+            labelPostAllStatus.Text = "状态：未启用";
+            toolTip1.SetToolTip(labelPostAllStatus, "双击查看详细状态，右键打开菜单");
             // 
             // B3BForm
             // 
@@ -356,8 +395,9 @@
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             tabControl1.ResumeLayout(false);
             tabPageB3B.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)webViewB3B).EndInit();
+            tabPageB3B.PerformLayout();
             contextMenuStripStatus.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)webViewB3B).EndInit();
             ResumeLayout(false);
         }
 
@@ -388,7 +428,10 @@
         private ToolStripMenuItem toolStripMenuItemShowStatus;
         private ToolStripMenuItem toolStripMenuItemTestDelete;
         private ToolStripMenuItem toolStripMenuItemResetStatus;
-        private Button buttonToggleTimer;
         private ToolTip toolTip1;
+        private Button buttonAutoLogin;
+        private CheckBox checkBoxAutoPostAll;
+        private DateTimePicker dateTimePickerPostAllTime;
+        private Label labelPostAllStatus;
     }
 }
