@@ -44,21 +44,21 @@
             buttonOpenB3B = new Button();
             tabControl1 = new TabControl();
             tabPageB3B = new TabPage();
-            dateTimePickerPostAllTime = new DateTimePicker();
-            checkBoxAutoPostAll = new CheckBox();
-            buttonAutoLogin = new Button();
-            labelDeleteStatus = new Label();
+            labelPostAllStatus = new Label();
             contextMenuStripStatus = new ContextMenuStrip(components);
             toolStripMenuItemShowStatus = new ToolStripMenuItem();
             toolStripMenuItemTestDelete = new ToolStripMenuItem();
             toolStripMenuItemResetStatus = new ToolStripMenuItem();
+            dateTimePickerPostAllTime = new DateTimePicker();
+            checkBoxAutoPostAll = new CheckBox();
+            buttonAutoLogin = new Button();
+            labelDeleteStatus = new Label();
             dateTimePickerDeleteTime = new DateTimePicker();
             checkBoxAutoDelete = new CheckBox();
             buttonDelAllPolicy = new Button();
             webViewB3B = new Microsoft.Web.WebView2.WinForms.WebView2();
             tabPage2 = new TabPage();
             toolTip1 = new ToolTip(components);
-            labelPostAllStatus = new Label();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
@@ -149,7 +149,7 @@
             buttonPostAllPolicy.Name = "buttonPostAllPolicy";
             buttonPostAllPolicy.Size = new Size(90, 23);
             buttonPostAllPolicy.TabIndex = 7;
-            buttonPostAllPolicy.Text = "发全部政策";
+            buttonPostAllPolicy.Text = "3发全部政策";
             buttonPostAllPolicy.UseVisualStyleBackColor = true;
             buttonPostAllPolicy.Click += buttonPostAllPolicy_Click;
             // 
@@ -159,7 +159,7 @@
             buttonShowDBData.Name = "buttonShowDBData";
             buttonShowDBData.Size = new Size(96, 23);
             buttonShowDBData.TabIndex = 6;
-            buttonShowDBData.Text = "刷新数据库";
+            buttonShowDBData.Text = "2刷新数据库";
             buttonShowDBData.UseVisualStyleBackColor = true;
             buttonShowDBData.Click += buttonShowDBData_Click;
             // 
@@ -207,7 +207,7 @@
             buttonOpenB3B.Name = "buttonOpenB3B";
             buttonOpenB3B.Size = new Size(75, 23);
             buttonOpenB3B.TabIndex = 0;
-            buttonOpenB3B.Text = "打开B3B";
+            buttonOpenB3B.Text = "1打开B3B";
             buttonOpenB3B.UseVisualStyleBackColor = true;
             buttonOpenB3B.Click += buttonOpenB3B_Click;
             // 
@@ -239,6 +239,45 @@
             tabPageB3B.TabIndex = 0;
             tabPageB3B.Text = "B3B";
             tabPageB3B.UseVisualStyleBackColor = true;
+            // 
+            // labelPostAllStatus
+            // 
+            labelPostAllStatus.AutoSize = true;
+            labelPostAllStatus.ContextMenuStrip = contextMenuStripStatus;
+            labelPostAllStatus.ForeColor = Color.Gray;
+            labelPostAllStatus.Location = new Point(602, 10);
+            labelPostAllStatus.Name = "labelPostAllStatus";
+            labelPostAllStatus.Size = new Size(80, 17);
+            labelPostAllStatus.TabIndex = 19;
+            labelPostAllStatus.Text = "状态：未启用";
+            toolTip1.SetToolTip(labelPostAllStatus, "双击查看详细状态，右键打开菜单");
+            // 
+            // contextMenuStripStatus
+            // 
+            contextMenuStripStatus.Items.AddRange(new ToolStripItem[] { toolStripMenuItemShowStatus, toolStripMenuItemTestDelete, toolStripMenuItemResetStatus });
+            contextMenuStripStatus.Name = "contextMenuStripStatus";
+            contextMenuStripStatus.Size = new Size(149, 70);
+            // 
+            // toolStripMenuItemShowStatus
+            // 
+            toolStripMenuItemShowStatus.Name = "toolStripMenuItemShowStatus";
+            toolStripMenuItemShowStatus.Size = new Size(148, 22);
+            toolStripMenuItemShowStatus.Text = "显示详细状态";
+            toolStripMenuItemShowStatus.Click += toolStripMenuItemShowStatus_Click;
+            // 
+            // toolStripMenuItemTestDelete
+            // 
+            toolStripMenuItemTestDelete.Name = "toolStripMenuItemTestDelete";
+            toolStripMenuItemTestDelete.Size = new Size(148, 22);
+            toolStripMenuItemTestDelete.Text = "测试删除功能";
+            toolStripMenuItemTestDelete.Click += toolStripMenuItemTestDelete_Click;
+            // 
+            // toolStripMenuItemResetStatus
+            // 
+            toolStripMenuItemResetStatus.Name = "toolStripMenuItemResetStatus";
+            toolStripMenuItemResetStatus.Size = new Size(148, 22);
+            toolStripMenuItemResetStatus.Text = "重置状态";
+            toolStripMenuItemResetStatus.Click += toolStripMenuItemResetStatus_Click;
             // 
             // dateTimePickerPostAllTime
             // 
@@ -284,33 +323,6 @@
             labelDeleteStatus.Text = "状态：未启用";
             toolTip1.SetToolTip(labelDeleteStatus, "双击查看详细状态，右键打开菜单");
             labelDeleteStatus.DoubleClick += labelDeleteStatus_DoubleClick;
-            // 
-            // contextMenuStripStatus
-            // 
-            contextMenuStripStatus.Items.AddRange(new ToolStripItem[] { toolStripMenuItemShowStatus, toolStripMenuItemTestDelete, toolStripMenuItemResetStatus });
-            contextMenuStripStatus.Name = "contextMenuStripStatus";
-            contextMenuStripStatus.Size = new Size(149, 70);
-            // 
-            // toolStripMenuItemShowStatus
-            // 
-            toolStripMenuItemShowStatus.Name = "toolStripMenuItemShowStatus";
-            toolStripMenuItemShowStatus.Size = new Size(148, 22);
-            toolStripMenuItemShowStatus.Text = "显示详细状态";
-            toolStripMenuItemShowStatus.Click += toolStripMenuItemShowStatus_Click;
-            // 
-            // toolStripMenuItemTestDelete
-            // 
-            toolStripMenuItemTestDelete.Name = "toolStripMenuItemTestDelete";
-            toolStripMenuItemTestDelete.Size = new Size(148, 22);
-            toolStripMenuItemTestDelete.Text = "测试删除功能";
-            toolStripMenuItemTestDelete.Click += toolStripMenuItemTestDelete_Click;
-            // 
-            // toolStripMenuItemResetStatus
-            // 
-            toolStripMenuItemResetStatus.Name = "toolStripMenuItemResetStatus";
-            toolStripMenuItemResetStatus.Size = new Size(148, 22);
-            toolStripMenuItemResetStatus.Text = "重置状态";
-            toolStripMenuItemResetStatus.Click += toolStripMenuItemResetStatus_Click;
             // 
             // dateTimePickerDeleteTime
             // 
@@ -366,18 +378,6 @@
             tabPage2.TabIndex = 1;
             tabPage2.Text = "tabPage2";
             tabPage2.UseVisualStyleBackColor = true;
-            // 
-            // labelPostAllStatus
-            // 
-            labelPostAllStatus.AutoSize = true;
-            labelPostAllStatus.ContextMenuStrip = contextMenuStripStatus;
-            labelPostAllStatus.ForeColor = Color.Gray;
-            labelPostAllStatus.Location = new Point(602, 10);
-            labelPostAllStatus.Name = "labelPostAllStatus";
-            labelPostAllStatus.Size = new Size(80, 17);
-            labelPostAllStatus.TabIndex = 19;
-            labelPostAllStatus.Text = "状态：未启用";
-            toolTip1.SetToolTip(labelPostAllStatus, "双击查看详细状态，右键打开菜单");
             // 
             // B3BForm
             // 

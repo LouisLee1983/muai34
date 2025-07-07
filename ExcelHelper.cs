@@ -299,7 +299,7 @@ namespace WF_MUAI_34
             EndFlightDate = string.Empty; // 需要在使用时设置
             AheadDays = "1"; // 默认1天
             ExtraOpenCabin = "G"; // 默认是"G"
-            Rebate = "2"; // 默认是"2"
+            Rebate = "3"; // 默认是"2"
             Retention = "0"; // 默认是"0"
             LowerPrice = null; // 可以为null
             UpperPrice = null; // 可以为null

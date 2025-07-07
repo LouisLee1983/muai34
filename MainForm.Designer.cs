@@ -39,11 +39,11 @@ namespace WF_MUAI_34
             计划任务ToolStripMenuItem = new ToolStripMenuItem();
             buttonImportMuExcel = new Button();
             splitContainer1 = new SplitContainer();
+            buttonClearTable = new Button();
             buttonEditAll = new Button();
             buttonOpenB3BForm = new Button();
             buttonEditSelectedItem = new Button();
             dataGridViewMuOrgExcel = new DataGridView();
-            buttonClearTable = new Button();
             contextMenuStrip1.SuspendLayout();
             menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
@@ -104,7 +104,7 @@ namespace WF_MUAI_34
             buttonImportMuExcel.Name = "buttonImportMuExcel";
             buttonImportMuExcel.Size = new Size(100, 23);
             buttonImportMuExcel.TabIndex = 0;
-            buttonImportMuExcel.Text = "导入闪惠excel";
+            buttonImportMuExcel.Text = "1导入闪惠excel";
             buttonImportMuExcel.Click += buttonImportMuExcel_Click;
             // 
             // splitContainer1
@@ -129,13 +129,23 @@ namespace WF_MUAI_34
             splitContainer1.SplitterDistance = 206;
             splitContainer1.TabIndex = 3;
             // 
+            // buttonClearTable
+            // 
+            buttonClearTable.Location = new Point(109, 70);
+            buttonClearTable.Name = "buttonClearTable";
+            buttonClearTable.Size = new Size(94, 23);
+            buttonClearTable.TabIndex = 4;
+            buttonClearTable.Text = "2清楚旧数据表";
+            buttonClearTable.UseVisualStyleBackColor = true;
+            buttonClearTable.Click += buttonClearTable_Click;
+            // 
             // buttonEditAll
             // 
             buttonEditAll.Location = new Point(3, 70);
             buttonEditAll.Name = "buttonEditAll";
             buttonEditAll.Size = new Size(100, 23);
             buttonEditAll.TabIndex = 3;
-            buttonEditAll.Text = "全部转换";
+            buttonEditAll.Text = "3全部转换";
             buttonEditAll.UseVisualStyleBackColor = true;
             buttonEditAll.Click += buttonEditAll_Click;
             // 
@@ -145,7 +155,7 @@ namespace WF_MUAI_34
             buttonOpenB3BForm.Name = "buttonOpenB3BForm";
             buttonOpenB3BForm.Size = new Size(75, 23);
             buttonOpenB3BForm.TabIndex = 2;
-            buttonOpenB3BForm.Text = "打开B3B";
+            buttonOpenB3BForm.Text = "4打开B3B";
             buttonOpenB3BForm.UseVisualStyleBackColor = true;
             buttonOpenB3BForm.Click += buttonOpenB3BForm_Click;
             // 
@@ -167,16 +177,6 @@ namespace WF_MUAI_34
             dataGridViewMuOrgExcel.Name = "dataGridViewMuOrgExcel";
             dataGridViewMuOrgExcel.Size = new Size(880, 641);
             dataGridViewMuOrgExcel.TabIndex = 0;
-            // 
-            // buttonClearTable
-            // 
-            buttonClearTable.Location = new Point(109, 70);
-            buttonClearTable.Name = "buttonClearTable";
-            buttonClearTable.Size = new Size(94, 23);
-            buttonClearTable.TabIndex = 4;
-            buttonClearTable.Text = "清楚旧数据表";
-            buttonClearTable.UseVisualStyleBackColor = true;
-            buttonClearTable.Click += buttonClearTable_Click;
             // 
             // MainForm
             // 
