@@ -58,6 +58,9 @@
             buttonDelAllPolicy = new Button();
             webViewB3B = new Microsoft.Web.WebView2.WinForms.WebView2();
             tabPage2 = new TabPage();
+            webViewMU = new Microsoft.Web.WebView2.WinForms.WebView2();
+            comboBox1 = new ComboBox();
+            button1 = new Button();
             toolTip1 = new ToolTip(components);
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
@@ -68,6 +71,8 @@
             tabPageB3B.SuspendLayout();
             contextMenuStripStatus.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)webViewB3B).BeginInit();
+            tabPage2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)webViewMU).BeginInit();
             SuspendLayout();
             // 
             // splitContainer1
@@ -371,6 +376,9 @@
             // 
             // tabPage2
             // 
+            tabPage2.Controls.Add(webViewMU);
+            tabPage2.Controls.Add(comboBox1);
+            tabPage2.Controls.Add(button1);
             tabPage2.Location = new Point(4, 26);
             tabPage2.Name = "tabPage2";
             tabPage2.Padding = new Padding(3);
@@ -378,6 +386,35 @@
             tabPage2.TabIndex = 1;
             tabPage2.Text = "tabPage2";
             tabPage2.UseVisualStyleBackColor = true;
+            // 
+            // webViewMU
+            // 
+            webViewMU.AllowExternalDrop = true;
+            webViewMU.CreationProperties = null;
+            webViewMU.DefaultBackgroundColor = Color.White;
+            webViewMU.Location = new Point(6, 51);
+            webViewMU.Name = "webViewMU";
+            webViewMU.Size = new Size(1019, 708);
+            webViewMU.TabIndex = 2;
+            webViewMU.ZoomFactor = 1D;
+            // 
+            // comboBox1
+            // 
+            comboBox1.FormattingEnabled = true;
+            comboBox1.Location = new Point(104, 12);
+            comboBox1.Name = "comboBox1";
+            comboBox1.Size = new Size(121, 25);
+            comboBox1.TabIndex = 1;
+            // 
+            // button1
+            // 
+            button1.Location = new Point(13, 12);
+            button1.Name = "button1";
+            button1.Size = new Size(75, 23);
+            button1.TabIndex = 0;
+            button1.Text = "第一步";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
             // 
             // B3BForm
             // 
@@ -398,6 +435,8 @@
             tabPageB3B.PerformLayout();
             contextMenuStripStatus.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)webViewB3B).EndInit();
+            tabPage2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)webViewMU).EndInit();
             ResumeLayout(false);
         }
 
@@ -433,5 +472,8 @@
         private CheckBox checkBoxAutoPostAll;
         private DateTimePicker dateTimePickerPostAllTime;
         private Label labelPostAllStatus;
+        private Button button1;
+        private ComboBox comboBox1;
+        private Microsoft.Web.WebView2.WinForms.WebView2 webViewMU;
     }
 }

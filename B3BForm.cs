@@ -54,11 +54,11 @@ namespace WF_MUAI_34
             // 设置默认时间
             dateTimePickerDeleteTime.Value = DateTime.Today.Add(deleteTime);
             checkBoxAutoDelete.Checked = isAutoDeleteEnabled;
-            
+
             // 设置定时上传全部默认时间
             dateTimePickerPostAllTime.Value = DateTime.Today.Add(postAllTime);
             checkBoxAutoPostAll.Checked = isAutoPostAllEnabled;
-            
+
             UpdateStatusLabel();
             UpdatePostAllStatusLabel();
         }
@@ -559,6 +559,8 @@ namespace WF_MUAI_34
         {
             // 确保 CoreWebView2 已初始化
             await webViewB3B.EnsureCoreWebView2Async(null);
+            // 初始化webViewMU
+
         }
 
         private async void buttonOpenB3B_Click(object sender, EventArgs e)
@@ -1531,7 +1533,7 @@ namespace WF_MUAI_34
                         }
 
                         System.Diagnostics.Debug.WriteLine($"定时上传结果: {resultMessage}");
-                        
+
                         // 可选：显示详细结果消息框
                         // MessageBox.Show(resultMessage, "定时上传结果", MessageBoxButtons.OK,
                         //     batchResult.FailureCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
@@ -2855,6 +2857,29 @@ namespace WF_MUAI_34
                 };
                 titleTimer.Start();
             }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            //帮我在webviewMU打开网址：https://www.ceair.com/
+            try
+            {
+                if (webViewMU.CoreWebView2 != null)
+                {
+                    string url = "https://www.ceair.com/";
+                    webViewMU.CoreWebView2.Navigate(url);
+                    System.Diagnostics.Debug.WriteLine($"正在打开网址: {url}");
+                }
+                else
+                { 
+                    System.Diagnostics.Debug.WriteLine("WebViewMU 未初始化，无法打开网址");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"打开网址失败: {ex.Message}");
+            }
+
         }
     }
 }
